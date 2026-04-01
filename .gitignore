@@ -1,0 +1,41 @@
+# --- Base de Datos (CONFIDENCIAL) ---
+*.db
+*.sqlite3
+database/*.db
+
+# --- Reportes y Archivos Generados ---
+*.xlsx
+*.xls
+*.csv
+Informe_Social_*.xlsx
+
+# --- Entorno Virtual y Dependencias ---
+fletenv/
+venv/
+.venv/
+env/
+ENV/
+build/
+dist/
+*.spec
+
+# --- Archivos de Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Configuraciones del Editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# --- Logs y Temporales ---
+*.log
+/tmp/
+.env
+.python-version
