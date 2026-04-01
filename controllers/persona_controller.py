@@ -173,3 +173,61 @@ class PersonaController:
             return {nombre: conteo for nombre, conteo in stats}
         finally:
             db.close()
+    @staticmethod
+    def get_analytics(mes=None, anio=None):
+        """Obtiene datos agregados filtrados por periodo."""
+        from database.models import CatTipoUsuario, CatEscuela
+        from sqlalchemy import func, extract
+        db = SessionLocal()
+        try:
+            # ── Base de la query con filtro de activo ──
+            def base_q(modelo_base=Persona):
+                q = db.query(modelo_base).filter(Persona.activo == True)
+                if mes:
+                    q = q.filter(extract('month', Persona.fecha_atencion) == int(mes))
+                if anio:
+                    q = q.filter(extract('year', Persona.fecha_atencion) == int(anio))
+                return q
+
+            # 1. Distribución por Sexo
+            sexo_stats = base_q().with_entities(Persona.sexo, func.count(Persona.id)).group_by(Persona.sexo).all()
+            sex_data = {s if s else "N/A": c for s, c in sexo_stats}
+
+            # 2. Distribución por Tipo de Usuario
+            tipo_stats = db.query(CatTipoUsuario.nombre, func.count(Persona.id))\
+                .outerjoin(Persona, (Persona.tipo_usuario_id == CatTipoUsuario.id) & (Persona.activo == True))
+            if mes: tipo_stats = tipo_stats.filter(extract('month', Persona.fecha_atencion) == int(mes))
+            if anio: tipo_stats = tipo_stats.filter(extract('year', Persona.fecha_atencion) == int(anio))
+            tipo_stats = tipo_stats.group_by(CatTipoUsuario.nombre).all()
+            tipo_data = {n: c for n, c in tipo_stats}
+
+            # 3. Top 5 Escuelas
+            escuela_stats = db.query(CatEscuela.nombre, func.count(Persona.id))\
+                .join(Persona, (Persona.escuela_id == CatEscuela.id) & (Persona.activo == True))
+            if mes: escuela_stats = escuela_stats.filter(extract('month', Persona.fecha_atencion) == int(mes))
+            if anio: escuela_stats = escuela_stats.filter(extract('year', Persona.fecha_atencion) == int(anio))
+            escuela_stats = escuela_stats.group_by(CatEscuela.nombre)\
+                .order_by(func.count(Persona.id).desc())\
+                .limit(5).all()
+            escuela_data = [{"label": n, "count": c} for n, c in escuela_stats]
+
+            # 4. Total de registros para este periodo
+            total_periodo = base_q().count()
+
+            # 5. Casos Sociales para este periodo
+            from database.models import CatCasoSocial
+            casos_q = db.query(CatCasoSocial.nombre, func.count(Persona.id))\
+                .outerjoin(Persona, (Persona.caso_social_id == CatCasoSocial.id) & (Persona.activo == True))
+            if mes: casos_q = casos_q.filter(extract('month', Persona.fecha_atencion) == int(mes))
+            if anio: casos_q = casos_q.filter(extract('year', Persona.fecha_atencion) == int(anio))
+            casos_periodo = {n: c for n, c in casos_q.group_by(CatCasoSocial.nombre).all()}
+
+            return {
+                "sexo": sex_data,
+                "tipos": tipo_data,
+                "top_escuelas": escuela_data,
+                "total_periodo": total_periodo,
+                "casos_periodo": casos_periodo
+            }
+        finally:
+            db.close()
