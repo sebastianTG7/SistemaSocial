@@ -59,9 +59,9 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         on_select=lambda _: cargar_datos(buscador.value)
     )
     dd_año = ft.Dropdown(
-        label="Año", width=100,
+        label="Año", width=110,
         value=str(_hoy.year),
-        options=[ft.dropdown.Option(key=str(a), text=str(a)) for a in range(2023, _hoy.year + 3)],
+        options=[ft.dropdown.Option(key=str(a), text=str(a)) for a in range(2025, _hoy.year + 4)],
         on_select=lambda _: cargar_datos(buscador.value)
     )
     def limpiar_mes(e):
@@ -167,32 +167,83 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         dlg.actions_alignment = "end"
         mostrar_dialogo(dlg)
 
+    # ── Estado de Paginación ──────────────────────────────────────────────────
+    estado_p = {
+        "pagina": 1,
+        "por_pagina": 20,
+        "total_registros": 0
+    }
+    
+    txt_paginacion = ft.Text("Página 1", size=13, weight="bold")
+    btn_prev = ft.IconButton(ft.Icons.NAVIGATE_BEFORE, on_click=lambda _: cambiar_pag(-1), disabled=True)
+    btn_next = ft.IconButton(ft.Icons.NAVIGATE_NEXT, on_click=lambda _: cambiar_pag(1))
+    
+    def on_per_page_change(e):
+        estado_p["por_pagina"] = int(e.control.value)
+        estado_p["pagina"] = 1
+        cargar_datos(buscador.value)
+
+    dd_per_page = ft.Dropdown(
+        value="20", width=80, height=45,
+        options=[ft.dropdown.Option("10"), ft.dropdown.Option("20"), 
+                 ft.dropdown.Option("50"), ft.dropdown.Option("100")],
+        on_select=on_per_page_change,
+        content_padding=ft.padding.all(10)
+    )
+
+    def cambiar_pag(delta):
+        estado_p["pagina"] += delta
+        cargar_datos(buscador.value)
+
     # ── Cargar filas ─────────────────────────────────────────────────────────
     def cargar_datos(filtro=""):
         p_all = PersonaController.get_all(solo_activos=False)
         
-        # Filtrar por mes/año seleccionado
+        # 1. Filtrar por mes/año seleccionado
         if dd_mes.value:
             p_all = [p for p in p_all if p["fecha_atencion"].month == int(dd_mes.value)]
         if dd_año.value:
             p_all = [p for p in p_all if p["fecha_atencion"].year == int(dd_año.value)]
             
-        pers  = [p for p in p_all if p["activo"] == estado["mostrar_activos"]]
+        # 2. Filtrar por pestaña Activo/Inactivo
+        p_filtered  = [p for p in p_all if p["activo"] == estado["mostrar_activos"]]
+        
+        # 3. Filtrar por buscador
         if filtro:
             f = filtro.upper()
-            pers = [p for p in pers if f in (p["dni"] or "") or
+            p_filtered = [p for p in p_filtered if f in (p["dni"] or "") or
                     f in (p["apellidos"] or "").upper() or f in (p["nombres"] or "").upper()]
         
-        # Orden alfabético por Apellidos y luego Nombres
-        pers.sort(key=lambda p: ((p["apellidos"] or "").upper(), (p["nombres"] or "").upper()))
+        # 4. Orden alfabético
+        p_filtered.sort(key=lambda p: ((p["apellidos"] or "").upper(), (p["nombres"] or "").upper()))
         
+        # 5. Lógica de Paginación (Slicing)
+        total = len(p_filtered)
+        estado_p["total_registros"] = total
+        max_pags = max(1, (total + estado_p["por_pagina"] - 1) // estado_p["por_pagina"])
+        
+        if estado_p["pagina"] > max_pags: estado_p["pagina"] = max_pags
+        if estado_p["pagina"] < 1: estado_p["pagina"] = 1
+        
+        inicio = (estado_p["pagina"] - 1) * estado_p["por_pagina"]
+        fin = inicio + estado_p["por_pagina"]
+        
+        datos_paginados = p_filtered[inicio:fin]
+        
+        # Actualizar UI de paginación
+        txt_paginacion.value = f"Página {estado_p['pagina']} de {max_pags} ({total} registros)"
+        btn_prev.disabled = estado_p["pagina"] <= 1
+        btn_next.disabled = estado_p["pagina"] >= max_pags
+        
+        # Actualizar contadores de pestañas
         if txt_activos.current:
             txt_activos.current.value  = f"Activos ({sum(1 for p in p_all if p.get('activo'))})"
         if txt_inactivos.current:
             txt_inactivos.current.value= f"Inactivos ({sum(1 for p in p_all if not p.get('activo'))})"
 
+        # 6. Dibujar Tabla
         tabla.rows = []
-        for i, p in enumerate(pers, 1):
+        for i, p in enumerate(datos_paginados, inicio + 1):
             pid = p["id"]
             tabla.rows.append(ft.DataRow(cells=[
                 ft.DataCell(ft.Text(str(i), size=13)),
@@ -236,13 +287,13 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                     ),
                     ft.IconButton(
                         icon=ft.Icons.CHECK_CIRCLE_ROUNDED, icon_color=ft.Colors.GREEN_400,
-                        icon_size=20, tooltip="Volver a Activar",
+                        icon_size=20, tooltip="Volver de Inactivo",
                         visible=not estado["mostrar_activos"],
                         on_click=lambda _, p=pid: (PersonaController.activar(p), mostrar_exito(page,"Activado"), cargar_datos(buscador.value))
                     ),
                     ft.IconButton(
                         icon=ft.Icons.DELETE_FOREVER_ROUNDED, icon_color=ft.Colors.RED_900,
-                        icon_size=20, tooltip="Borrar Definitivamente",
+                        icon_size=20, tooltip="Borrar Definitivo",
                         visible=not estado["mostrar_activos"],
                         on_click=lambda _, p=pid: abrir_borrado(p)
                     ),
@@ -262,21 +313,19 @@ def build_personas_view(page: ft.Page, on_new_click=None):
 
     cargar_datos()
 
-    # ── Scroll 2D: Column (vertical) con altura dinámica + Row (horizontal) ───
-    OFFSET = 310  # mayor que historial: incluye botón Nuevo + pestañas Activos/Inactivos
-    tabla_col = ft.Column(
-        controls=[tabla],
-        scroll=ft.ScrollMode.AUTO,
-        height=max(300, page.window.height - OFFSET)
+    # ── Scroll 2D: Contenedor Elástico ──────────────────────────────────────
+    # Usamos expand=True para que el área de la tabla tome todo el espacio 
+    # sobrante y deje la paginación pegada abajo.
+    area_tabla = ft.Container(
+        content=ft.Row(
+            [ft.Column([tabla], scroll=ft.ScrollMode.AUTO)],
+            scroll=ft.ScrollMode.ALWAYS,
+            vertical_alignment=ft.CrossAxisAlignment.START
+        ),
+        expand=True, # <--- ESTO es el secreto para que no se oculte la paginación
     )
 
-    def on_page_resize(e):
-        tabla_col.height = max(300, page.window.height - OFFSET)
-        tabla_col.update()
-
-    page.on_resized = on_page_resize
-
-    return ft.Container(padding=ft.padding.only(left=25, right=25, top=20, bottom=0), expand=True, content=ft.Column([
+    return ft.Container(padding=ft.padding.only(left=25, right=25, top=20, bottom=10), expand=True, content=ft.Column([
         ft.Row([
             ft.Icon(ft.Icons.PEOPLE_ALT_ROUNDED, color=ft.Colors.GREEN_400, size=28),
             ft.Text("Gestión de Personas", size=24, weight="bold"),
@@ -297,10 +346,27 @@ def build_personas_view(page: ft.Page, on_new_click=None):
             ft.IconButton(ft.Icons.RESTART_ALT_ROUNDED, tooltip="Mes actual", on_click=limpiar_mes),
         ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.CENTER),
         buscador,
-        # Row exterior: scroll HORIZONTAL (barra siempre visible al fondo del área acotada)
-        ft.Row(
-            [tabla_col],
-            scroll=ft.ScrollMode.ALWAYS,
-            vertical_alignment=ft.CrossAxisAlignment.START
-        ),
+
+        # El área de la tabla ahora es EXPANDIBLE
+        area_tabla,
+        
+        # ── Barra de Paginación ──────────────────────────────────────────────
+        ft.Container(
+            padding=ft.padding.symmetric(horizontal=10, vertical=5),
+            bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.BLUE_700),
+            border_radius=8,
+            content=ft.Row([
+                ft.Row([
+                    ft.Text("Ver:", size=12, color=ft.Colors.WHITE_54),
+                    dd_per_page
+                ], spacing=10),
+                ft.VerticalDivider(width=20),
+                txt_paginacion,
+                ft.Container(expand=True),
+                ft.Row([
+                    btn_prev,
+                    btn_next
+                ], spacing=5)
+            ], alignment=ft.MainAxisAlignment.CENTER)
+        )
     ], expand=True, spacing=12))
