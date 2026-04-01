@@ -39,3 +39,4 @@ htmlcov/
 /tmp/
 .env
 .python-version
+.gemini/
