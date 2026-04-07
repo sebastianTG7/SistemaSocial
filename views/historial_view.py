@@ -18,15 +18,25 @@ def build_historial_view(page: ft.Page):
         "total_registros": 0
     }
     
+    # ── Estado de Ordenación ────────────────────────────────────────────────
+    sort_info = {"index": None, "ascending": True}
+
+    def al_ordenar(col_idx, ascending):
+        sort_info["index"] = col_idx
+        sort_info["ascending"] = ascending
+        tabla.sort_column_index = col_idx
+        tabla.sort_ascending = ascending
+        cargar_datos()
+
     # ── Elementos de UI ──────────────────────────────────────────────────────
     tabla = ft.DataTable(
         columns=[
-            ft.DataColumn(ft.Text("#", weight="bold")),
-            ft.DataColumn(ft.Text("Fecha", weight="bold")),
-            ft.DataColumn(ft.Text("DNI/Código", weight="bold")),
-            ft.DataColumn(ft.Text("Apellidos y Nombres", weight="bold")),
+            ft.DataColumn(ft.Text("#", weight="bold"), on_sort=lambda e: al_ordenar(e.column_index, e.ascending)),
+            ft.DataColumn(ft.Text("Fecha", weight="bold"), on_sort=lambda e: al_ordenar(e.column_index, e.ascending)),
+            ft.DataColumn(ft.Text("DNI/Código", weight="bold"), on_sort=lambda e: al_ordenar(e.column_index, e.ascending)),
+            ft.DataColumn(ft.Text("Apellidos y Nombres", weight="bold"), on_sort=lambda e: al_ordenar(e.column_index, e.ascending)),
             ft.DataColumn(ft.Text("Cel./Correo", weight="bold")),
-            ft.DataColumn(ft.Text("Tipo/Caso", weight="bold")),
+            ft.DataColumn(ft.Text("Tipo/Caso", weight="bold"), on_sort=lambda e: al_ordenar(e.column_index, e.ascending)),
             ft.DataColumn(ft.Text("Facultad/Escuela", weight="bold")),
             ft.DataColumn(ft.Text("Obs./Dirección", weight="bold")),
         ],
@@ -104,8 +114,23 @@ def build_historial_view(page: ft.Page):
         if dd_año.value: p_all = [p for p in p_all if p["fecha_atencion"].year == int(dd_año.value)]
         f = buscador.value.upper() if buscador.value else ""
         if f: p_all = [p for p in p_all if f in (p["dni"] or "") or f in (p["apellidos"] or "").upper() or f in (p["nombres"] or "").upper()]
-        
-        p_all.sort(key=lambda p: ((p["apellidos"] or "").upper(), (p["nombres"] or "").upper()))
+
+        # Ordenación Dinámica según cabecera
+        if sort_info["index"] is not None:
+            idx = sort_info["index"]
+            asc = sort_info["ascending"]
+            if idx == 1: # Fecha
+                p_all.sort(key=lambda p: p["fecha_atencion"], reverse=not asc)
+            elif idx == 2: # DNI
+                p_all.sort(key=lambda p: (p["dni"] or ""), reverse=not asc)
+            elif idx == 3: # Apellidos
+                p_all.sort(key=lambda p: ((p["apellidos"] or "").upper(), (p["nombres"] or "").upper()), reverse=not asc)
+            elif idx == 5: # Tipo de Usuario
+                p_all.sort(key=lambda p: (p["tipo_usuario"] or ""), reverse=not asc)
+            elif idx == 0: # # Correlativo
+                p_all.sort(key=lambda p: p["id"], reverse=not asc)
+        else:
+            p_all.sort(key=lambda p: ((p["apellidos"] or "").upper(), (p["nombres"] or "").upper()))
         datos_actuales = p_all # Guardar para Excel
         
         total = len(p_all)

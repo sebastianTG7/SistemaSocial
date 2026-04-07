@@ -83,7 +83,7 @@ def init_db():
 
     # 2. Tipos de usuario
     if db.query(CatTipoUsuario).count() == 0:
-        tipos = [CatTipoUsuario(nombre="Alumno"), CatTipoUsuario(nombre="Egresado")]
+        tipos = [CatTipoUsuario(nombre="Estudiante"), CatTipoUsuario(nombre="Egresado")]
         db.add_all(tipos)
         print("  ✔ Catálogo Tipos de Usuario inicializado.")
 
