@@ -1,6 +1,5 @@
 import flet as ft
 
-
 class Sidebar(ft.NavigationRail):
     def __init__(self, on_change):
         super().__init__()

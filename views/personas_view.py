@@ -194,7 +194,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         cargar_datos(buscador.value)
 
     dd_per_page = ft.Dropdown(
-        value="20", width=80, height=45,
+        value="20", width=85, height=45,
         options=[ft.dropdown.Option("10"), ft.dropdown.Option("20"), 
                  ft.dropdown.Option("50"), ft.dropdown.Option("100")],
         on_select=on_per_page_change,
@@ -293,7 +293,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                 ft.DataCell(ft.Column([
                     ft.Text(p["facultad"], size=11),
                     ft.Text(p["escuela"], size=10, color=ft.Colors.WHITE_54)
-                ], spacing=0, width=140)),
+                ], spacing=0, width=150)),
                 ft.DataCell(ft.Column([
                     ft.Text(p["observaciones"] or "-", size=11, italic=True),
                     ft.Text(p["direccion"] or "-", size=10, color=ft.Colors.WHITE_54)

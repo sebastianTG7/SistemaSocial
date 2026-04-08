@@ -9,7 +9,7 @@ from views.historial_view import build_historial_view
 from views.config_view import build_config_view
 
 def main(page: ft.Page):
-    # Inicializar la base de datos en el primer arranque
+    # Inicializar la base de datos
     init_db()
     
     # Configuración de la página
@@ -20,13 +20,12 @@ def main(page: ft.Page):
     page.window.height = 800
     page.padding = 0
     
-    # Estado de la sesión
+    # Estado
     state = {"user": None}
     main_container = ft.Container(expand=True)
 
     def navigate_to(index):
-        """Maneja el cambio de pestañas del sidebar."""
-        # Sincronizar el sidebar si se llama externamente
+        """Maneja la navegación principal estable."""
         sidebar.selected_index = index
         
         if index == 0:
@@ -41,7 +40,7 @@ def main(page: ft.Page):
             main_container.content = build_config_view(page)
         page.update()
 
-    # Sidebar
+    # Sidebar clásica estable
     sidebar = Sidebar(on_change=lambda e: navigate_to(e.control.selected_index))
 
     def logout(e=None):
@@ -52,26 +51,18 @@ def main(page: ft.Page):
     def login_success(user_data):
         state["user"] = user_data
         page.clean()
-        
-        layout = ft.Row(
-            [
-                sidebar,
-                ft.VerticalDivider(width=1, color=ft.Colors.BLUE_900),
-                ft.Container(content=main_container, expand=True, padding=20)
-            ],
-            expand=True,
-            vertical_alignment=ft.CrossAxisAlignment.START
-        )
+        layout = ft.Row([
+            sidebar,
+            ft.VerticalDivider(width=1, color=ft.Colors.BLUE_900),
+            ft.Container(content=main_container, expand=True, padding=20)
+        ], expand=True)
         page.add(layout)
         navigate_to(0)
 
     def show_login():
         login_view = LoginView(page, on_login_success=login_success)
         page.add(ft.Container(
-            content=login_view,
-            expand=True,
-            alignment=ft.alignment.Alignment(0, 0),
-            bgcolor=ft.Colors.BLUE_GREY_900
+            content=login_view, expand=True, alignment=ft.Alignment(0, 0), bgcolor=ft.Colors.BLUE_GREY_900
         ))
 
     show_login()

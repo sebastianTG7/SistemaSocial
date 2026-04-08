@@ -10,163 +10,175 @@ class DashboardView(ft.Column):
         self.expand = True
         self.scroll = ft.ScrollMode.AUTO
 
-        # ── Estado de Filtros ──
+        # ── Estado ──
         _hoy = datetime.now()
         self.sel_mes = str(_hoy.month)
         self.sel_anio = str(_hoy.year)
 
-        # ── Contenedores Principales ──
-        self.container_cards = ft.Row(spacing=15, alignment="start")
-        self.container_charts = ft.ResponsiveRow(spacing=20)
+        # ── Contenedores ──
+        self.container_cards = ft.Row(spacing=20, alignment="start")
+        self.container_top_charts = ft.ResponsiveRow(spacing=20)
+        self.container_bottom_trend = ft.Container(padding=ft.padding.all(20), border_radius=20)
         
-        # ── Filtros Estilizados ──
-        meses_n = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+        # ── Filtros ──
+        meses_lista = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
         self.dd_mes = ft.Dropdown(
-            label="Mes", width=140, value=self.sel_mes,
-            options=[ft.dropdown.Option("all", "Todo el Año")] + [ft.dropdown.Option(str(i+1), meses_n[i]) for i in range(12)],
+            label="Mes Actual", width=140, value=self.sel_mes,
+            options=[ft.dropdown.Option("all", "Todo el Año")] + [ft.dropdown.Option(str(i+1), meses_lista[i]) for i in range(12)],
             on_select=lambda _: self.actualizar_dashboard(),
-            border_radius=10, border_color=ft.Colors.BLUE_900
+            border_radius=12
         )
         self.dd_anio = ft.Dropdown(
             label="Año", width=110, value=self.sel_anio,
             options=[ft.dropdown.Option(str(a), str(a)) for a in range(2025, _hoy.year + 5)],
             on_select=lambda _: self.actualizar_dashboard(),
-            border_radius=10, border_color=ft.Colors.BLUE_900
+            border_radius=12
         )
+
+        # Botón de Cambio de Tema
+        self.btn_theme = ft.IconButton(
+            icon=ft.Icons.LIGHT_MODE_ROUNDED if page.theme_mode == ft.ThemeMode.DARK else ft.Icons.DARK_MODE_ROUNDED,
+            on_click=self.toggle_theme,
+            icon_color=ft.Colors.AMBER_400 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK
+        )
+
+        self.title_text = ft.Text(f"Dashboard Analítico v3.0", size=24, weight="bold")
+        self.sub_text = ft.Text("Métricas de rendimiento e impacto social universitario.", size=12)
 
         header = ft.Container(
             content=ft.Row([
-                ft.Column([
-                    ft.Text(f"Dashboard Social", size=24, weight="bold"),
-                    ft.Text("Métricas de impacto y seguimiento académico.", size=12, color=ft.Colors.WHITE_54)
-                ], spacing=2),
+                ft.Column([self.title_text, self.sub_text], spacing=2),
                 ft.Container(expand=True),
-                self.dd_mes, self.dd_anio,
+                self.btn_theme, self.dd_mes, self.dd_anio,
                 ft.IconButton(ft.Icons.LOGOUT_ROUNDED, on_click=on_logout, icon_color=ft.Colors.RED_400),
             ]), padding=ft.Padding(0, 0, 0, 10)
         )
 
+        self.trend_title = ft.Text("Evolución de Atenciones Mes a Mes", size=16, weight="bold")
+
         self.controls = [
-            header, 
-            ft.Divider(height=1, color=ft.Colors.WHITE10), 
-            self.container_cards, 
-            ft.Divider(height=1, color="transparent"),
-            self.container_charts, 
+            header,
+            ft.Divider(height=1),
+            self.container_cards,
+            self.container_top_charts,
+            self.trend_title,
+            self.container_bottom_trend,
             ft.Container(height=40)
         ]
-        
         self.actualizar_dashboard(render_now=False)
 
-    def _donut_chart(self, value, total, color, label):
+    def toggle_theme(self, e):
+        self.main_page.theme_mode = ft.ThemeMode.LIGHT if self.main_page.theme_mode == ft.ThemeMode.DARK else ft.ThemeMode.DARK
+        self.actualizar_dashboard()
+        self.main_page.update()
+
+    def _get_ui_colors(self):
+        """Devuelve una paleta de colores según el modo actual."""
+        is_dark = self.main_page.theme_mode == ft.ThemeMode.DARK
+        return {
+            "card_bg": ft.Colors.with_opacity(0.07, ft.Colors.WHITE) if is_dark else ft.Colors.WHITE,
+            "panel_bg": ft.Colors.with_opacity(0.05, ft.Colors.WHITE) if is_dark else ft.Colors.GREY_50,
+            "text_main": ft.Colors.WHITE if is_dark else ft.Colors.BLACK,
+            "text_sub": ft.Colors.WHITE_54 if is_dark else ft.Colors.BLACK54,
+            "shadow": ft.Colors.BLACK54 if is_dark else ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
+            "ring_bg": ft.Colors.WHITE10 if is_dark else ft.Colors.BLACK12,
+            "border": ft.Colors.WHITE10 if is_dark else ft.Colors.BLACK12,
+            "trend_title": ft.Colors.BLUE_200 if is_dark else ft.Colors.BLUE_900
+        }
+
+    def _badge_donut(self, value, total, color, label, ui):
         perc = (value / total) if total > 0 else 0
         return ft.Column([
             ft.Stack([
-                ft.ProgressRing(value=1.0, width=70, height=70, stroke_width=8, color=ft.Colors.WHITE10),
-                ft.ProgressRing(value=perc, width=70, height=70, stroke_width=8, color=color),
-                ft.Container(content=ft.Text(f"{int(perc*100)}%", size=11, weight="bold"), width=70, height=70, alignment=ft.Alignment(0, 0))
+                ft.ProgressRing(value=1.0, width=75, height=75, stroke_width=7, color=ui["ring_bg"]),
+                ft.ProgressRing(value=perc, width=75, height=75, stroke_width=7, color=color),
+                ft.Container(content=ft.Text(f"{int(perc*100)}%", size=12, weight="bold", color=ui["text_main"]), width=75, height=75, alignment=ft.Alignment(0, 0))
             ]),
-            ft.Text(label, size=10, color=ft.Colors.WHITE_54, text_align="center")
+            ft.Text(label, size=11, color=ui["text_sub"])
         ], horizontal_alignment="center", spacing=8)
 
-    def _vert_bar(self, label, count, max_val):
-        h_max = 120
-        h_bar = (count / max_val * h_max) if max_val > 0 else 5
+    def _trend_bar(self, label, count, max_val, ui):
+        h_max = 100
+        h_bar = (count / max_val * h_max) if max_val > 0 else 2
         return ft.Column([
             ft.Container(expand=True),
-            ft.Container(width=20, height=h_bar, bgcolor=ft.Colors.BLUE_400, border_radius=ft.border_radius.only(top_left=5, top_right=5), tooltip=f"{label}: {count}"),
-            ft.Text(label[:3].upper(), size=9, color=ft.Colors.WHITE_54)
-        ], horizontal_alignment="center", spacing=5, height=h_max + 20)
+            ft.Container(
+                content=ft.Text(str(count) if count > 0 else "", size=9, weight="bold", color=ui["text_main"]),
+                alignment=ft.Alignment(0, -1),
+                padding=ft.padding.only(top=5),
+                width=35, height=h_bar, 
+                gradient=ft.LinearGradient(begin=ft.Alignment(0,-1), end=ft.Alignment(0,1), colors=[ft.Colors.GREEN_400, ft.Colors.BLUE_900]),
+                border_radius=8,
+                shadow=ft.BoxShadow(offset=ft.Offset(2, 4), blur_radius=10, color=ui["shadow"]),
+                tooltip=f"{label}: {count}"
+            ),
+            ft.Text(label[:3].upper(), size=10, color=ui["text_sub"])
+        ], horizontal_alignment="center", spacing=10, height=130)
 
     def actualizar_dashboard(self, render_now=True):
+        ui = self._get_ui_colors()
+        
+        # Actualizar UI base
+        self.btn_theme.icon = ft.Icons.LIGHT_MODE_ROUNDED if self.main_page.theme_mode == ft.ThemeMode.DARK else ft.Icons.DARK_MODE_ROUNDED
+        self.btn_theme.icon_color = ft.Colors.AMBER_400 if self.main_page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK
+        self.sub_text.color = ui["text_sub"]
+        self.trend_title.color = ui["trend_title"]
+
         mes = None if self.dd_mes.value == "all" else self.dd_mes.value
         anio = self.dd_anio.value
         data = PersonaController.get_analytics(mes=mes, anio=anio)
+        trend = PersonaController.get_trend(anio)
 
-        # 1. ACTUALIZAR TARJETAS (Nombres reales de tu base de datos)
-        categorias_reales = [
-            "Evaluación",
-            "Evaluación y Seguimiento",
-            "Seguimiento",
-            "Orientacion"
-        ]
-        
+        # 1. Cards
+        self.container_cards.controls = [self._card_3d("Total Atenciones", str(data["total_periodo"]), ft.Colors.BLUE_400, ui)]
         casos = data["casos_periodo"]
-        self.container_cards.controls = [
-            self._card_premium("Total Atenciones", str(data["total_periodo"]), ft.Colors.BLUE_400)
-        ]
-        
-        for cat in categorias_reales:
-            # Buscamos el conteo exacto en el diccionario que viene del controlador
-            conteo = casos.get(cat, 0)
-            self.container_cards.controls.append(
-                self._card_premium(cat, str(conteo), ft.Colors.GREEN_400)
-            )
+        for cat in ["Evaluación", "Evaluación y Seguimiento", "Seguimiento", "Orientacion"]:
+            self.container_cards.controls.append(self._card_3d(cat, str(casos.get(cat,0)), ft.Colors.GREEN_400, ui))
 
-        # 2. Cálculos para Gráficos
+        # 2. Charts
+        v_est = 0
+        for k, v in data['tipos'].items():
+            if str(k).upper() in ["ALUMNO", "ESTUDIANTE"]: v_est += v
+        v_egr = data['tipos'].get("Egresado", 0) + data['tipos'].get("EGRESADO", 0)
+        
         t_sexo = sum(data['sexo'].values()) or 1
-        
-        # Normalizamos y combinamos Alumno/Estudiante para compatibilidad con datos viejos
-        tipos_raw = data['tipos']
-        val_estudiante = 0
-        val_egresado = 0
-        
-        for k, v in tipos_raw.items():
-            key_up = str(k).upper()
-            if key_up in ["ALUMNO", "ESTUDIANTE"]:
-                val_estudiante += v
-            elif key_up == "EGRESADO":
-                val_egresado += v
-        
-        tipos_norm = {"ESTUDIANTE": val_estudiante, "EGRESADO": val_egresado}
-        t_tipos = (val_estudiante + val_egresado) or 1
-        
-        max_esc = max([e['count'] for e in data['top_escuelas']]) if data['top_escuelas'] else 1
+        t_sum = (v_est + v_egr) or 1
 
-        self.container_charts.controls = [
-            # PANEL 1: GÉNERO
-            ft.Container(
-                col={"sm": 12, "md": 4}, bgcolor=ft.Colors.with_opacity(0.04, ft.Colors.WHITE), 
-                padding=20, border_radius=15, height=220,
-                content=ft.Column([
-                    ft.Text("Género", size=13, weight="bold"),
-                    ft.Divider(height=20, color="transparent"),
-                    ft.Row([
-                        self._donut_chart(data['sexo'].get("M", 0), t_sexo, ft.Colors.BLUE_500, "Varones"),
-                        self._donut_chart(data['sexo'].get("F", 0), t_sexo, ft.Colors.PINK_400, "Mujeres"),
-                    ], alignment="spaceAround")
-                ])
-            ),
-            # PANEL 2: CONDICIÓN (Egresados vs Estudiante)
-            ft.Container(
-                col={"sm": 12, "md": 4}, bgcolor=ft.Colors.with_opacity(0.04, ft.Colors.WHITE), 
-                padding=20, border_radius=15, height=220,
-                content=ft.Column([
-                    ft.Text("Tipo de Usuario", size=13, weight="bold"),
-                    ft.Divider(height=20, color="transparent"),
-                    ft.Row([
-                        self._donut_chart(tipos_norm.get("ESTUDIANTE", 0), t_tipos, ft.Colors.GREEN_600, "Estudiante"),
-                        self._donut_chart(tipos_norm.get("EGRESADO", 0), t_tipos, ft.Colors.ORANGE_600, "Egresado"),
-                    ], alignment="spaceAround")
-                ])
-            ),
-            ft.Container(
-                col={"sm": 12, "md": 4}, bgcolor=ft.Colors.with_opacity(0.04, ft.Colors.WHITE), 
-                padding=20, border_radius=15, height=220,
-                content=ft.Column([ft.Text("Top 5 Escuelas", size=13, weight="bold"),
-                                   ft.Row([self._vert_bar(e['label'], e['count'], max_esc) for e in data['top_escuelas']], 
-                                          alignment="spaceAround", vertical_alignment="end", expand=True)], expand=True)
-            )
+        self.container_top_charts.controls = [
+            self._panel_base("Demografía por Género", 5, ui, ft.Row([
+                self._badge_donut(data['sexo'].get("M", 0), t_sexo, ft.Colors.BLUE_400, "Varones", ui),
+                self._badge_donut(data['sexo'].get("F", 0), t_sexo, ft.Colors.PINK_400, "Mujeres", ui),
+            ], alignment="spaceAround")),
+            self._panel_base("Tipología de Usuario", 7, ui, ft.Row([
+                self._badge_donut(v_est, t_sum, ft.Colors.GREEN_400, "Estudiantes", ui),
+                self._badge_donut(v_egr, t_sum, ft.Colors.ORANGE_400, "Egresados", ui),
+            ], alignment="spaceAround"))
         ]
 
+        # 3. Tendencia
+        meses_n = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+        m_trend = max(trend.values()) if trend.values() else 1
+        self.container_bottom_trend.bgcolor = ui["panel_bg"]
+        self.container_bottom_trend.shadow = ft.BoxShadow(blur_radius=15, color=ui["shadow"], offset=ft.Offset(0,10))
+        self.container_bottom_trend.content = ft.Row(
+            [self._trend_bar(meses_n[m-1], trend[m], m_trend, ui) for m in range(1, 13)],
+            alignment="spaceAround", vertical_alignment="end"
+        )
         if render_now: self.update()
 
-    def _card_premium(self, title, value, color):
+    def _card_3d(self, title, value, color, ui):
         return ft.Container(
-            expand=True, bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.WHITE), 
-            padding=ft.padding.all(15), border_radius=15, border=ft.border.all(1, ft.Colors.WHITE10),
+            expand=True, bgcolor=ui["card_bg"], padding=20, border_radius=20, border=ft.border.all(1, ui["border"]),
+            shadow=ft.BoxShadow(offset=ft.Offset(4, 6), blur_radius=12, color=ui["shadow"]),
             content=ft.Column([
-                ft.Text(title, size=10, color=ft.Colors.WHITE_54, max_lines=1),
-                ft.Text(value, size=24, weight="bold")
-            ], spacing=5, alignment="center"),
-            height=100
+                ft.Text(title, size=10, color=ui["text_sub"], max_lines=1),
+                ft.Text(value, size=28, weight="bold", color=color)
+            ], spacing=5, alignment="center"), height=110
+        )
+
+    def _panel_base(self, title, col_size, ui, content):
+        return ft.Container(
+            col={"sm": 12, "md": col_size}, bgcolor=ui["panel_bg"], padding=25, border_radius=25, 
+            shadow=ft.BoxShadow(blur_radius=15, color=ui["shadow"], offset=ft.Offset(0,10)),
+            content=ft.Column([ft.Text(title, size=14, weight="bold", color=ui["text_main"]), ft.Divider(height=10, color="transparent"), content])
         )

@@ -69,7 +69,7 @@ def build_historial_view(page: ft.Page):
     btn_next = ft.IconButton(ft.Icons.NAVIGATE_NEXT, on_click=lambda _: cambiar_pag(1))
     
     dd_per_page = ft.Dropdown(
-        value="20", width=80, height=45,
+        value="20", width=85, height=45,
         options=[ft.dropdown.Option("10"), ft.dropdown.Option("20"), 
                  ft.dropdown.Option("50"), ft.dropdown.Option("100")],
         on_select=lambda e: (estado_p.update({"por_pagina": int(e.control.value)}), reset_pag_y_cargar()),
