@@ -1,88 +1,94 @@
 import flet as ft
 from controllers.auth_controller import AuthController
 
-class LoginView(ft.Column):
+class LoginView(ft.Container):
     def __init__(self, page: ft.Page, on_login_success):
         super().__init__()
         self.main_page = page
         self.on_login_success = on_login_success
+        
+        self.expand = True
+        self.bgcolor = "#0f111a"
+        self.alignment = ft.Alignment(0, 0)
 
+        # ── Campos de Entrada ─────────────────────────────────────────────────
         self.username_field = ft.TextField(
             label="Usuario",
-            prefix_icon=ft.Icons.PERSON,
-            border_color=ft.Colors.BLUE_700,
-            focused_border_color=ft.Colors.GREEN_400,
+            prefix_icon=ft.Icons.PERSON_OUTLINED,
+            border_radius=15,
+            border_color="#1e293b",
+            focused_border_color="#0ea5e9",
+            bgcolor="#1e293b",
+            width=300,
             on_submit=self.handle_login,
-            width=320,
         )
+        
         self.password_field = ft.TextField(
             label="Contraseña",
-            prefix_icon=ft.Icons.LOCK,
+            prefix_icon=ft.Icons.LOCK_OUTLINED,
             password=True,
             can_reveal_password=True,
-            border_color=ft.Colors.BLUE_700,
-            focused_border_color=ft.Colors.GREEN_400,
+            border_radius=15,
+            border_color="#1e293b",
+            focused_border_color="#0ea5e9",
+            bgcolor="#1e293b",
+            width=300,
             on_submit=self.handle_login,
-            width=320,
         )
-        self.login_button = ft.ElevatedButton(
-            content=ft.Row(
-                [
-                    ft.Icon(ft.Icons.LOGIN, size=18),
-                    ft.Text("Iniciar Sesión", weight=ft.FontWeight.BOLD),
-                ],
-                tight=True,
-                spacing=8,
-            ),
-            width=320,
+
+        self.login_button = ft.Container(
+            content=ft.Text("Iniciar Sesión", weight="bold", color="#0ea5e9"),
+            alignment=ft.Alignment(0, 0),
+            width=300,
+            height=50,
+            bgcolor="#1e293b",
+            border_radius=15,
             on_click=self.handle_login,
-            style=ft.ButtonStyle(
-                bgcolor=ft.Colors.BLUE_800,
-                color=ft.Colors.WHITE,
+        )
+
+        self.error_text = ft.Text("", color=ft.Colors.RED_400, weight="bold", size=12)
+
+        # ── Panel Formulario (Izquierda) ──────────────────────────────────────
+        form_panel = ft.Container(
+            expand=1,
+            content=ft.Column([
+                ft.Column([
+                    ft.Text("SERVICIO SOCIAL", size=32, weight="bold", color=ft.Colors.WHITE),
+                    ft.Container(height=2, width=100, bgcolor="#0ea5e9"),
+                ], horizontal_alignment="center", spacing=6),
+
+                ft.Container(height=40),
+
+                ft.Text("Iniciar Sesión", size=22, weight="bold", color=ft.Colors.WHITE),
+                ft.Container(height=15),
+
+                self.username_field,
+                ft.Container(height=5),
+                self.password_field,
+                ft.Container(height=10),
+                self.error_text,
+                ft.Container(height=20),
+                self.login_button,
+
+            ], horizontal_alignment="center", alignment="center"),
+        )
+
+        # ── Panel Logo (Derecha) ──────────────────────────────────────────────
+        image_panel = ft.Container(
+            expand=1,
+            content=ft.Image(
+                src="logo.svg",
+                width=500,
+                height=500,
             ),
-        )
-        self.error_text = ft.Text(
-            "", color=ft.Colors.RED_400, weight=ft.FontWeight.BOLD
+            alignment=ft.Alignment(0, 0),
+            padding=ft.padding.only(right=80, top=20, bottom=20),
         )
 
-        self.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-        self.alignment = ft.MainAxisAlignment.CENTER
-        self.expand = True
-
-        self.controls = [
-            ft.Container(
-                content=ft.Column(
-                    [
-                        ft.Icon(ft.Icons.ACCOUNT_BALANCE, size=70, color=ft.Colors.BLUE_400),
-                        ft.Text(
-                            "Servicio Social",
-                            size=26,
-                            weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.WHITE,
-                        ),
-                        ft.Text(
-                            "Sistema de Gestión Universitaria",
-                            size=14,
-                            color=ft.Colors.BLUE_200,
-                        ),
-                        ft.Divider(height=24, color=ft.Colors.TRANSPARENT),
-                        self.username_field,
-                        self.password_field,
-                        ft.Container(height=4),
-                        self.error_text,
-                        ft.Container(height=4),
-                        self.login_button,
-                    ],
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                    spacing=12,
-                ),
-                bgcolor=ft.Colors.with_opacity(0.15, ft.Colors.BLUE_700),
-                padding=40,
-                border_radius=16,
-                border=ft.border.all(1, ft.Colors.BLUE_900),
-                width=420,
-            )
-        ]
+        self.content = ft.Row([
+            form_panel,
+            image_panel,
+        ], alignment="center", expand=True)
 
     def handle_login(self, e):
         self.login_button.disabled = True

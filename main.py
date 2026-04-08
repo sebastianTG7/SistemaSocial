@@ -68,4 +68,7 @@ def main(page: ft.Page):
     show_login()
 
 if __name__ == "__main__":
-    ft.run(main)
+    import os
+    if not os.path.exists("assets"):
+        os.makedirs("assets")
+    ft.run(main, assets_dir="assets")
