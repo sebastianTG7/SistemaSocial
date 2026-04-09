@@ -88,12 +88,23 @@ class DashboardView(ft.Column):
 
     def _badge_donut(self, value, total, color, label, ui):
         perc = (value / total) if total > 0 else 0
+        anillo = ft.Stack([
+            ft.ProgressRing(value=1.0, width=75, height=75, stroke_width=7, color=ui["ring_bg"]),
+            ft.ProgressRing(value=perc, width=75, height=75, stroke_width=7, color=color),
+            ft.Container(
+                content=ft.Text(f"{int(perc*100)}%", size=12, weight="bold", color=ui["text_main"]),
+                width=75, height=75, alignment=ft.Alignment(0, 0)
+            ),
+        ])
+        # Cantidad real a la derecha del anillo
+        cantidad = ft.Container(
+            content=ft.Text(f"{value}", size=11, weight="bold", color=color),
+            alignment=ft.Alignment(0, -1),
+            height=75,
+            padding=ft.padding.only(top=4, left=4)
+        )
         return ft.Column([
-            ft.Stack([
-                ft.ProgressRing(value=1.0, width=75, height=75, stroke_width=7, color=ui["ring_bg"]),
-                ft.ProgressRing(value=perc, width=75, height=75, stroke_width=7, color=color),
-                ft.Container(content=ft.Text(f"{int(perc*100)}%", size=12, weight="bold", color=ui["text_main"]), width=75, height=75, alignment=ft.Alignment(0, 0))
-            ]),
+            ft.Row([anillo, cantidad], vertical_alignment="start", spacing=0),
             ft.Text(label, size=11, color=ui["text_sub"])
         ], horizontal_alignment="center", spacing=8)
 

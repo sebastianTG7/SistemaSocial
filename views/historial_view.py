@@ -37,7 +37,7 @@ def build_historial_view(page: ft.Page):
             ft.DataColumn(ft.Text("Apellidos y Nombres", weight="bold"), on_sort=lambda e: al_ordenar(e.column_index, e.ascending)),
             ft.DataColumn(ft.Text("Cel./Correo", weight="bold")),
             ft.DataColumn(ft.Text("Tipo/Caso", weight="bold"), on_sort=lambda e: al_ordenar(e.column_index, e.ascending)),
-            ft.DataColumn(ft.Text("Facultad/Escuela", weight="bold")),
+            ft.DataColumn(ft.Text("Facultad/Escuela", weight="bold"), on_sort=lambda e: al_ordenar(e.column_index, e.ascending)),
             ft.DataColumn(ft.Text("Obs./Dirección", weight="bold")),
         ],
         column_spacing=18,
@@ -48,8 +48,10 @@ def build_historial_view(page: ft.Page):
     meses_nombres = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     
     dd_mes = ft.Dropdown(
-        label="Mes", width=140, value=str(_hoy.month),
-        options=[ft.dropdown.Option(key=str(i+1), text=meses_nombres[i]) for i in range(12)],
+        label="Mes", width=155, value=str(_hoy.month),
+        options=[
+            ft.dropdown.Option(key="all", text="Todo el Año")
+        ] + [ft.dropdown.Option(key=str(i+1), text=meses_nombres[i]) for i in range(12)],
         on_select=lambda _: reset_pag_y_cargar()
     )
     
@@ -69,11 +71,11 @@ def build_historial_view(page: ft.Page):
     btn_next = ft.IconButton(ft.Icons.NAVIGATE_NEXT, on_click=lambda _: cambiar_pag(1))
     
     dd_per_page = ft.Dropdown(
-        value="20", width=85, height=45,
+        value="20", width=93, height=45,
         options=[ft.dropdown.Option("10"), ft.dropdown.Option("20"), 
                  ft.dropdown.Option("50"), ft.dropdown.Option("100")],
         on_select=lambda e: (estado_p.update({"por_pagina": int(e.control.value)}), reset_pag_y_cargar()),
-        content_padding=ft.Padding(10,2,10,2)
+        content_padding=ft.Padding(10,2,10,2)   
     )
 
     def reset_pag_y_cargar():
@@ -100,7 +102,8 @@ def build_historial_view(page: ft.Page):
                 cell.fill = fill; cell.font = font; cell.alignment = Alignment(horizontal="center")
             for i, p in enumerate(datos_actuales, 1):
                 ws.append([i, p.get("dni","-"), f"{p['apellidos']}, {p['nombres']}".upper(), p.get("edad","-"), p.get("sexo","-"), p.get("tipo_usuario","-"), p.get("codigo_estudiante","-"), p.get("año_estudio","-"), p.get("facultad","-"), p.get("escuela","-"), p.get("caso_social","-")])
-            filename = f"Informe_{meses_nombres[int(dd_mes.value)-1]}_{dd_año.value}.xlsx"
+            periodo = "Anual" if dd_mes.value == "all" else meses_nombres[int(dd_mes.value)-1]
+            filename = f"Informe_{periodo}_{dd_año.value}.xlsx"
             filepath = os.path.join(os.path.expanduser("~"), "Downloads", filename)
             try: wb.save(filepath); mostrar_exito(page, f"✔ en Descargas")
             except: wb.save(filename); mostrar_exito(page, f"✔ en CarpetaLocal")
@@ -110,7 +113,7 @@ def build_historial_view(page: ft.Page):
         nonlocal datos_actuales
         p_all = PersonaController.get_all(solo_activos=False)
         p_all = [p for p in p_all if p["activo"]]
-        if dd_mes.value: p_all = [p for p in p_all if p["fecha_atencion"].month == int(dd_mes.value)]
+        if dd_mes.value and dd_mes.value != "all": p_all = [p for p in p_all if p["fecha_atencion"].month == int(dd_mes.value)]
         if dd_año.value: p_all = [p for p in p_all if p["fecha_atencion"].year == int(dd_año.value)]
         f = buscador.value.upper() if buscador.value else ""
         if f: p_all = [p for p in p_all if f in (p["dni"] or "") or f in (p["apellidos"] or "").upper() or f in (p["nombres"] or "").upper()]
@@ -127,6 +130,8 @@ def build_historial_view(page: ft.Page):
                 p_all.sort(key=lambda p: ((p["apellidos"] or "").upper(), (p["nombres"] or "").upper()), reverse=not asc)
             elif idx == 5: # Tipo de Usuario
                 p_all.sort(key=lambda p: (p["tipo_usuario"] or ""), reverse=not asc)
+            elif idx == 6: # Facultad/Escuela
+                p_all.sort(key=lambda p: ((p["facultad"] or "").upper(), (p["escuela"] or "").upper()), reverse=not asc)
             elif idx == 0: # # Correlativo
                 p_all.sort(key=lambda p: p["id"], reverse=not asc)
         else:
@@ -157,7 +162,7 @@ def build_historial_view(page: ft.Page):
                 ft.DataCell(ft.Column([ft.Text(f"{p['apellidos']}, {p['nombres']}", weight="bold", size=12), ft.Text(f"{p['edad'] or '-'} años, {p['sexo'] or '-'} ", size=10, color=ft.Colors.WHITE_54)], spacing=0, width=260)),
                 ft.DataCell(ft.Column([ft.Text(p["celular"] or "-", size=12), ft.Text(p["correo"] or "-", size=11, color=ft.Colors.BLUE_200)], spacing=0, width=120)),
                 ft.DataCell(ft.Column([ft.Text(p["tipo_usuario"], size=11), ft.Text(p["caso_social"], size=11, color=ft.Colors.GREEN_400, weight="bold")], spacing=0, width=100)),
-                ft.DataCell(ft.Column([ft.Text(p["facultad"], size=11), ft.Text(p["escuela"], size=10, color=ft.Colors.WHITE_54)], spacing=0, width=140)),
+                ft.DataCell(ft.Column([ft.Text(p["facultad"], size=11), ft.Text(p["escuela"], size=10, color=ft.Colors.WHITE_54)], spacing=0, width=150)),
                 ft.DataCell(ft.Column([ft.Text(p["observaciones"] or "-", size=11, italic=True), ft.Text(p["direccion"] or "-", size=10, color=ft.Colors.WHITE_54)], spacing=0, width=200)),
             ]))
         page.update()

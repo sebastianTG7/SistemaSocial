@@ -46,7 +46,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
             ft.DataColumn(ft.Text("Apellidos y Nombres", weight="bold"), on_sort=lambda e: al_ordenar(e.column_index, e.ascending)),
             ft.DataColumn(ft.Text("Cel./Correo", weight="bold")),
             ft.DataColumn(ft.Text("Tipo/Caso", weight="bold"), on_sort=lambda e: al_ordenar(e.column_index, e.ascending)),
-            ft.DataColumn(ft.Text("Facultad/Escuela", weight="bold")),
+            ft.DataColumn(ft.Text("Facultad/Escuela", weight="bold"), on_sort=lambda e: al_ordenar(e.column_index, e.ascending)),
             ft.DataColumn(ft.Text("Obs./Dirección", weight="bold")),
             ft.DataColumn(ft.Text("Acciones", weight="bold")),
         ],
@@ -194,7 +194,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         cargar_datos(buscador.value)
 
     dd_per_page = ft.Dropdown(
-        value="20", width=85, height=45,
+        value="20", width=93, height=45,
         options=[ft.dropdown.Option("10"), ft.dropdown.Option("20"), 
                  ft.dropdown.Option("50"), ft.dropdown.Option("100")],
         on_select=on_per_page_change,
@@ -237,6 +237,8 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                 p_filtered.sort(key=lambda p: ((p["apellidos"] or "").upper(), (p["nombres"] or "").upper()), reverse=not asc)
             elif idx == 5: # Tipo de Usuario
                 p_filtered.sort(key=lambda p: (p["tipo_usuario"] or ""), reverse=not asc)
+            elif idx == 6: # Facultad/Escuela
+                p_filtered.sort(key=lambda p: ((p["facultad"] or "").upper(), (p["escuela"] or "").upper()), reverse=not asc)
             elif idx == 0: # # Correlativo
                 p_filtered.sort(key=lambda p: p["id"], reverse=not asc)
         else:
