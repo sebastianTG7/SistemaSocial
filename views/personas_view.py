@@ -71,7 +71,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
     dd_año = ft.Dropdown(
         label="Año", width=110,
         value=str(_hoy.year),
-        options=[ft.dropdown.Option(key=str(a), text=str(a)) for a in range(2025, _hoy.year + 4)],
+        options=[ft.dropdown.Option(key=str(a), text=str(a)) for a in range(2025, _hoy.year + 5)],
         on_select=lambda _: cargar_datos(buscador.value)
     )
     def limpiar_mes(e):

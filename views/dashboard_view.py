@@ -30,7 +30,7 @@ class DashboardView(ft.Column):
         )
         self.dd_anio = ft.Dropdown(
             label="Año", width=110, value=self.sel_anio,
-            options=[ft.dropdown.Option(str(a), str(a)) for a in range(2025, _hoy.year + 5)],
+            options=[ft.dropdown.Option(str(a), str(a)) for a in range(2026, _hoy.year + 5)],
             on_select=lambda _: self.actualizar_dashboard(),
             border_radius=12
         )
@@ -54,6 +54,11 @@ class DashboardView(ft.Column):
             ]), padding=ft.Padding(0, 0, 0, 10)
         )
 
+        self.facultades_title = ft.Text("Top Facultades con Mayor Atendidos", size=16, weight="bold")
+        self.container_facultades = ft.Container(padding=ft.padding.all(20), border_radius=20)
+        self._expandido_fac = False   # Estado del acordeón
+        self._data_facultades = []    # Caché de datos para el toggle
+        self._ui_cache = {}           # Caché de ui colors para el toggle
         self.trend_title = ft.Text("Evolución de Atenciones Mes a Mes", size=16, weight="bold")
 
         self.controls = [
@@ -61,6 +66,8 @@ class DashboardView(ft.Column):
             ft.Divider(height=1),
             self.container_cards,
             self.container_top_charts,
+            self.facultades_title,
+            self.container_facultades,
             self.trend_title,
             self.container_bottom_trend,
             ft.Container(height=40)
@@ -108,6 +115,77 @@ class DashboardView(ft.Column):
             ft.Text(label, size=11, color=ui["text_sub"])
         ], horizontal_alignment="center", spacing=8)
 
+    def _facultad_bar(self, label, count, max_val, ui):
+        """Barra horizontal para el ranking de facultades."""
+        perc = (count / max_val) if max_val > 0 else 0
+        colores = [ft.Colors.BLUE_400, ft.Colors.GREEN_400, ft.Colors.ORANGE_400, ft.Colors.PURPLE_400, ft.Colors.CYAN_400]
+        color = colores[hash(label) % len(colores)]
+        return ft.Column([
+            ft.Row([
+                ft.Text(label, size=12, color=ui["text_main"], expand=True, max_lines=1),
+                ft.Text(f"{count} atend.", size=11, weight="bold", color=color),
+            ]),
+            ft.Stack([
+                ft.Container(height=12, border_radius=6, bgcolor=ui["ring_bg"]),
+                ft.Container(
+                    height=12, border_radius=6,
+                    width=perc,  # Se usa como fracción junto con expand
+                    gradient=ft.LinearGradient(begin=ft.Alignment(-1,0), end=ft.Alignment(1,0), colors=[color, ft.Colors.BLUE_900]),
+                    # Truco: usamos la fracción como expand relativo
+                ),
+            ]),
+        ], spacing=4)
+
+    def _construir_panel_facultades(self):
+        """Construye el contenido del panel de facultades con acordeón."""
+        ui = self._ui_cache
+        todas = self._data_facultades
+        if not todas:
+            self.container_facultades.content = ft.Text("Sin datos en este período", color=ui.get("text_sub"))
+            return
+
+        colores_fac = [ft.Colors.BLUE_400, ft.Colors.GREEN_400, ft.Colors.ORANGE_400, ft.Colors.PURPLE_400, ft.Colors.CYAN_400]
+        max_fac = max((e["count"] for e in todas), default=1) or 1
+
+        # Cuántas mostrar según el estado
+        mostrar = todas if self._expandido_fac else todas[:5]
+
+        barras = []
+        for i, item in enumerate(mostrar):
+            color = colores_fac[i % len(colores_fac)]
+            perc_px = max(4, int((item["count"] / max_fac) * 400))
+            barras.append(ft.Column([
+                ft.Row([
+                    ft.Text(item["label"], size=12, color=ui.get("text_main"), expand=True, max_lines=1),
+                    ft.Text(f"{item['count']} atend.", size=11, weight="bold", color=color),
+                ]),
+                ft.Stack([
+                    ft.Container(height=14, border_radius=8, bgcolor=ui.get("ring_bg"), expand=True),
+                    ft.Container(
+                        height=14, border_radius=8, width=perc_px,
+                        gradient=ft.LinearGradient(begin=ft.Alignment(-1,0), end=ft.Alignment(1,0), colors=[color, ft.Colors.BLUE_900]),
+                    ),
+                ]),
+            ], spacing=5))
+
+        # Botón Ver más / Ver menos (solo si hay más de 5)
+        if len(todas) > 5:
+            icono = "▲ Ver menos" if self._expandido_fac else "▼ Ver más"
+            btn_ver_mas = ft.TextButton(
+                icono,
+                style=ft.ButtonStyle(color=ft.Colors.BLUE_400),
+                on_click=self._toggle_facultades,
+            )
+            barras.append(ft.Row([ft.Container(expand=True), btn_ver_mas]))
+
+        self.container_facultades.content = ft.Column(barras, spacing=15)
+
+    def _toggle_facultades(self, e):
+        """Alterna el acordeón y actualiza solo el panel de facultades."""
+        self._expandido_fac = not self._expandido_fac
+        self._construir_panel_facultades()
+        self.container_facultades.update()
+
     def _trend_bar(self, label, count, max_val, ui):
         h_max = 100
         h_bar = (count / max_val * h_max) if max_val > 0 else 2
@@ -129,11 +207,12 @@ class DashboardView(ft.Column):
     def actualizar_dashboard(self, render_now=True):
         ui = self._get_ui_colors()
         
-        # Actualizar UI base
+        # Actualizar títulos
         self.btn_theme.icon = ft.Icons.LIGHT_MODE_ROUNDED if self.main_page.theme_mode == ft.ThemeMode.DARK else ft.Icons.DARK_MODE_ROUNDED
         self.btn_theme.icon_color = ft.Colors.AMBER_400 if self.main_page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK
         self.sub_text.color = ui["text_sub"]
         self.trend_title.color = ui["trend_title"]
+        self.facultades_title.color = ui["trend_title"]
 
         mes = None if self.dd_mes.value == "all" else self.dd_mes.value
         anio = self.dd_anio.value
@@ -166,7 +245,15 @@ class DashboardView(ft.Column):
             ], alignment="spaceAround"))
         ]
 
-        # 3. Tendencia
+        # 3. Top Facultades (con acordeón)
+        self._ui_cache = ui
+        self._data_facultades = data.get("todas_escuelas", [])
+        self._expandido_fac = False   # Resetear al recargar datos
+        self.container_facultades.bgcolor = ui["panel_bg"]
+        self.container_facultades.shadow = ft.BoxShadow(blur_radius=15, color=ui["shadow"], offset=ft.Offset(0,10))
+        self._construir_panel_facultades()
+
+        # 4. Tendencia
         meses_n = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
         m_trend = max(trend.values()) if trend.values() else 1
         self.container_bottom_trend.bgcolor = ui["panel_bg"]

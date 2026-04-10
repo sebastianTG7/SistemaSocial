@@ -123,12 +123,16 @@ class PersonaController:
             if anio: q_casos = q_casos.filter(extract('year', Persona.fecha_atencion) == int(anio))
             casos = q_casos.group_by(CatCasoSocial.nombre).all()
 
-            # 4. Escuelas
+            # 4. Escuelas (top por escuela, no por facultad)
             q_escu = db.query(CatEscuela.nombre, func.count(Persona.id))\
                 .join(Persona, (Persona.escuela_id == CatEscuela.id) & (Persona.activo == True))
             if mes: q_escu = q_escu.filter(extract('month', Persona.fecha_atencion) == int(mes))
             if anio: q_escu = q_escu.filter(extract('year', Persona.fecha_atencion) == int(anio))
-            escuelas = q_escu.group_by(CatEscuela.nombre).order_by(func.count(Persona.id).desc()).limit(5).all()
+            q_escu = q_escu.group_by(CatEscuela.nombre)
+            # Top 5 para card principal
+            facultades_top5 = q_escu.order_by(func.count(Persona.id).desc()).limit(5).all()
+            # Todas para el acordeón
+            facultades_todas = q_escu.order_by(func.count(Persona.id).desc()).all()
 
             # 5. Sexo
             q_sexo = db.query(Persona.sexo, func.count(Persona.id)).filter(Persona.activo == True)
@@ -140,7 +144,8 @@ class PersonaController:
                 "total_periodo": total,
                 "tipos": {n: c for n, c in tipos},
                 "casos_periodo": {n: c for n, c in casos},
-                "top_escuelas": [{"label": n, "count": c} for n, c in escuelas],
+                "top_escuelas": [{"label": n, "count": c} for n, c in facultades_top5],
+                "todas_escuelas": [{"label": n, "count": c} for n, c in facultades_todas],
                 "sexo": {s if s else "N/A": c for s, c in sexo}
             }
         finally:

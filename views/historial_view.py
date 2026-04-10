@@ -57,7 +57,7 @@ def build_historial_view(page: ft.Page):
     
     dd_año = ft.Dropdown(
         label="Año", width=110, value=str(_hoy.year),
-        options=[ft.dropdown.Option(key=str(a), text=str(a)) for a in range(2025, _hoy.year + 5)],
+        options=[ft.dropdown.Option(key=str(a), text=str(a)) for a in range(2026, _hoy.year + 5)],
         on_select=lambda _: reset_pag_y_cargar()
     )
 
