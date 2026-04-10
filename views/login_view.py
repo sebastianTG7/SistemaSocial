@@ -8,8 +8,9 @@ class LoginView(ft.Container):
         self.on_login_success = on_login_success
         
         self.expand = True
-        self.bgcolor = "#0f111a"
+        self.bgcolor = "#0f111a"  # Fondo oscuro profundo
         self.alignment = ft.Alignment(0, 0)
+        self.theme_mode = ft.ThemeMode.DARK  # <--- FUERZA el modo oscuro solo para este contenedor
 
         # ── Campos de Entrada ─────────────────────────────────────────────────
         self.username_field = ft.TextField(
@@ -19,6 +20,8 @@ class LoginView(ft.Container):
             border_color="#1e293b",
             focused_border_color="#0ea5e9",
             bgcolor="#1e293b",
+            color=ft.Colors.WHITE,
+            label_style=ft.TextStyle(color=ft.Colors.WHITE70),
             width=300,
             on_submit=self.handle_login,
         )
@@ -32,6 +35,8 @@ class LoginView(ft.Container):
             border_color="#1e293b",
             focused_border_color="#0ea5e9",
             bgcolor="#1e293b",
+            color=ft.Colors.WHITE,
+            label_style=ft.TextStyle(color=ft.Colors.WHITE70),
             width=300,
             on_submit=self.handle_login,
         )

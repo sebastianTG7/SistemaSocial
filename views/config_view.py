@@ -96,7 +96,7 @@ def _tabla_crud_simple(page, modelo, nombre_campo="nombre", titulo="Catálogo"):
             tabla.rows.append(
                 ft.DataRow(
                     cells=[
-                        ft.DataCell(ft.Text(str(r.id), color=ft.Colors.WHITE_54)),
+                        ft.DataCell(ft.Text(str(r.id))),  # Sin color fijo
                         ft.DataCell(ft.Text(nombre_val)),
                         ft.DataCell(ft.Container(
                             content=ft.Text(texto_estado, size=12, weight="bold", color=color_estado),
@@ -236,7 +236,7 @@ def _build_respaldos(page: ft.Page):
     cfg = BackupManager.get_config()
 
     # ── Controles ────────────────────────────────────────────────────────────
-    txt_ultimo = ft.Text(BackupManager.ultimo_respaldo_texto(), size=13, color=ft.Colors.BLUE_200)
+    txt_ultimo = ft.Text(BackupManager.ultimo_respaldo_texto(), size=13, weight="bold")
     txt_carpeta = ft.TextField(
         label="Carpeta de respaldo", value=cfg.get("carpeta", ""),
         expand=True, read_only=False,
@@ -332,9 +332,9 @@ def _build_respaldos(page: ft.Page):
         # Card: Último respaldo
         ft.Container(
             content=ft.Row([
-                ft.Icon(ft.Icons.HISTORY_ROUNDED, color=ft.Colors.BLUE_300, size=20),
+                ft.Icon(ft.Icons.HISTORY_ROUNDED, color=ft.Colors.BLUE_400, size=20),
                 ft.Column([
-                    ft.Text("Último respaldo", size=11, color=ft.Colors.WHITE54),
+                    ft.Text("Último respaldo", size=11, weight="bold"),
                     txt_ultimo,
                 ], spacing=2),
             ], spacing=12),
@@ -345,7 +345,7 @@ def _build_respaldos(page: ft.Page):
         # Card: Carpeta destino
         ft.Container(
             content=ft.Column([
-                ft.Text("Carpeta de destino", size=13, weight="bold", color=ft.Colors.WHITE),
+                ft.Text("Carpeta de destino", size=13, weight="bold"),
                 ft.Row([
                     txt_carpeta,
                     ft.IconButton(
