@@ -1,7 +1,9 @@
 import flet as ft
+import os
 from database.db_config import SessionLocal
 from database.models import CatFacultad, CatEscuela, CatCasoSocial, CatTipoUsuario
-from core.ui_helpers import mostrar_snackbar
+from core.ui_helpers import mostrar_snackbar, mostrar_exito
+from core.backup_manager import BackupManager
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -228,6 +230,164 @@ def _tabla_crud_simple(page, modelo, nombre_campo="nombre", titulo="Catálogo"):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  Sección de Respaldos de Base de Datos
+# ══════════════════════════════════════════════════════════════════════════════
+def _build_respaldos(page: ft.Page):
+    cfg = BackupManager.get_config()
+
+    # ── Controles ────────────────────────────────────────────────────────────
+    txt_ultimo = ft.Text(BackupManager.ultimo_respaldo_texto(), size=13, color=ft.Colors.BLUE_200)
+    txt_carpeta = ft.TextField(
+        label="Carpeta de respaldo", value=cfg.get("carpeta", ""),
+        expand=True, read_only=False,
+        hint_text="Ej: C:/Respaldos/ServicioSocial"
+    )
+    txt_estado = ft.Text("", size=12, color=ft.Colors.GREEN_400)
+
+    swt_auto = ft.Switch(
+        value=cfg.get("automatico", False),
+        active_color=ft.Colors.BLUE_400,
+        label="Respaldo automático al iniciar",
+    )
+
+    INTERVALOS = [
+        ("1",  "Diario (cada 1 día)"),
+        ("7",  "Semanal (cada 7 días)"),
+        ("14", "Quincenal (cada 14 días)"),
+        ("30", "Mensual (cada 30 días)"),
+    ]
+    dd_intervalo = ft.Dropdown(
+        label="Intervalo", width=260,
+        value=str(cfg.get("intervalo_dias", 7)),
+        options=[ft.dropdown.Option(key=k, text=t) for k, t in INTERVALOS],
+    )
+
+    panel_auto = ft.Container(
+        visible=cfg.get("automatico", False),
+        content=ft.Column([
+            ft.Text("Frecuencia del respaldo automático:", size=12, color=ft.Colors.WHITE54),
+            dd_intervalo,
+        ], spacing=8),
+        padding=ft.padding.only(left=10, top=8),
+    )
+
+    def on_toggle_auto(e):
+        panel_auto.visible = swt_auto.value
+        page.update()
+
+    swt_auto.on_change = on_toggle_auto
+
+    # ── Selector de carpeta nativo (tkinter) ──────────────────────────────────
+    import threading
+    import tkinter as tk
+    from tkinter import filedialog
+
+    def elegir_carpeta(e):
+        def abrir_dialogo():
+            root = tk.Tk()
+            root.withdraw()                     # Ocultar ventana principal de tk
+            root.attributes("-topmost", True)   # Diálogo encima de todo
+            carpeta = filedialog.askdirectory(
+                title="Seleccionar carpeta de respaldo"
+            )
+            root.destroy()
+            if carpeta:
+                txt_carpeta.value = carpeta.replace("/", "\\")
+                page.update()
+
+        threading.Thread(target=abrir_dialogo, daemon=True).start()
+
+    # ── Guardar config ────────────────────────────────────────────────────────
+    def guardar_config(e):
+        nuevo_cfg = BackupManager.get_config()
+        nuevo_cfg["automatico"]    = swt_auto.value
+        nuevo_cfg["intervalo_dias"] = int(dd_intervalo.value or 7)
+        nuevo_cfg["carpeta"]        = txt_carpeta.value.strip() or nuevo_cfg["carpeta"]
+        BackupManager.save_config(nuevo_cfg)
+        txt_estado.value  = "✔ Configuración guardada"
+        txt_estado.color  = ft.Colors.GREEN_400
+        page.update()
+
+    # ── Respaldo manual ───────────────────────────────────────────────────────
+    def hacer_respaldo_manual(e):
+        carpeta = txt_carpeta.value.strip() or None
+        try:
+            ruta = BackupManager.hacer_respaldo(carpeta)
+            txt_estado.value = f"✔ Respaldo creado en:\n{ruta}"
+            txt_estado.color = ft.Colors.GREEN_400
+            txt_ultimo.value = BackupManager.ultimo_respaldo_texto()
+        except Exception as ex:
+            txt_estado.value = f"✖ Error: {str(ex)}"
+            txt_estado.color = ft.Colors.RED_400
+        page.update()
+
+    # ── Layout ────────────────────────────────────────────────────────────────
+    return ft.Column([
+        ft.Row([
+            ft.Icon(ft.Icons.BACKUP_ROUNDED, color=ft.Colors.BLUE_400, size=24),
+            ft.Text("Respaldo de Base de Datos", size=18, weight="bold"),
+        ], spacing=10),
+        ft.Divider(color=ft.Colors.BLUE_900),
+
+        # Card: Último respaldo
+        ft.Container(
+            content=ft.Row([
+                ft.Icon(ft.Icons.HISTORY_ROUNDED, color=ft.Colors.BLUE_300, size=20),
+                ft.Column([
+                    ft.Text("Último respaldo", size=11, color=ft.Colors.WHITE54),
+                    txt_ultimo,
+                ], spacing=2),
+            ], spacing=12),
+            bgcolor=ft.Colors.with_opacity(0.07, ft.Colors.BLUE_700),
+            padding=16, border_radius=10,
+        ),
+
+        # Card: Carpeta destino
+        ft.Container(
+            content=ft.Column([
+                ft.Text("Carpeta de destino", size=13, weight="bold", color=ft.Colors.WHITE),
+                ft.Row([
+                    txt_carpeta,
+                    ft.IconButton(
+                        ft.Icons.FOLDER_OPEN_ROUNDED,
+                        tooltip="Buscar carpeta",
+                        icon_color=ft.Colors.BLUE_400,
+                        on_click=elegir_carpeta,
+                    ),
+                ], spacing=8),
+            ], spacing=8),
+            bgcolor=ft.Colors.with_opacity(0.07, ft.Colors.BLUE_700),
+            padding=16, border_radius=10,
+        ),
+
+        # Card: Automático
+        ft.Container(
+            content=ft.Column([
+                swt_auto,
+                panel_auto,
+            ], spacing=4),
+            bgcolor=ft.Colors.with_opacity(0.07, ft.Colors.BLUE_700),
+            padding=16, border_radius=10,
+        ),
+
+        # Acciones
+        ft.Row([
+            ft.ElevatedButton(
+                content=ft.Row([ft.Icon(ft.Icons.SAVE_ROUNDED, size=16), ft.Text("Guardar configuración", size=13)], tight=True, spacing=6),
+                bgcolor=ft.Colors.BLUE_800, color=ft.Colors.WHITE,
+                on_click=guardar_config,
+            ),
+            ft.ElevatedButton(
+                content=ft.Row([ft.Icon(ft.Icons.BACKUP_ROUNDED, size=16), ft.Text("Hacer Respaldo Ahora", size=13)], tight=True, spacing=6),
+                bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE,
+                on_click=hacer_respaldo_manual,
+            ),
+        ], spacing=12),
+        txt_estado,
+    ], spacing=16, scroll=ft.ScrollMode.AUTO)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  Vista de Configuración Principal
 # ══════════════════════════════════════════════════════════════════════════════
 def build_config_view(page: ft.Page):
@@ -248,6 +408,8 @@ def build_config_view(page: ft.Page):
             contenido.content = _tabla_crud_simple(
                 page, CatFacultad, nombre_campo="nombre", titulo="Facultades"
             )
+        elif seccion == "respaldos":
+            contenido.content = _build_respaldos(page)
         page.update()
 
     # Botones de navegación entre secciones (reemplazo a Tabs)
@@ -278,6 +440,7 @@ def build_config_view(page: ft.Page):
                     btn_nav("Tipos de Usuario", "tipos", ft.Icons.PERSON_ROUNDED),
                     btn_nav("Casos Sociales", "casos", ft.Icons.LABEL_ROUNDED),
                     btn_nav("Facultades", "facultades", ft.Icons.SCHOOL_ROUNDED),
+                    btn_nav("Respaldos", "respaldos", ft.Icons.BACKUP_ROUNDED),
                 ], spacing=12),
                 bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.BLUE_700),
                 padding=12,

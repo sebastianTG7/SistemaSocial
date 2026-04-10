@@ -9,6 +9,8 @@ from views.personas_view import build_personas_view
 from views.historial_view import build_historial_view
 from views.config_view import build_config_view
 
+from core.backup_manager import BackupManager
+
 def main(page: ft.Page):
     init_db()
     page.title = "Sistema de Gestión Social"
@@ -87,10 +89,25 @@ def main(page: ft.Page):
         await asyncio.sleep(2)
         show_login()
 
+    # ── Backup automático al CERRAR la app (Máxima compatibilidad) ────────
+    def on_window_event(e):
+        if e.data == "close":
+            try:
+                cfg = BackupManager.get_config()
+                if cfg.get("automatico", False):
+                    BackupManager.hacer_respaldo()
+            except Exception:
+                pass
+            page.window_destroy()
+
+    page.window_prevent_close = True
+    page.on_window_event      = on_window_event
+    page.update()
+
     page.run_task(splash_task)
 
 if __name__ == "__main__":
     import os
     if not os.path.exists("assets"):
         os.makedirs("assets")
-    ft.app(main, assets_dir="assets")
+    ft.run(main, assets_dir="assets")
