@@ -62,7 +62,7 @@ def build_historial_view(page: ft.Page):
     )
 
     buscador = ft.TextField(
-        label="Buscar...", prefix_icon=ft.Icons.SEARCH, expand=True, 
+        label="Buscar por DNI, Nombre o Código...", prefix_icon=ft.Icons.SEARCH, expand=True, 
         on_change=lambda _: reset_pag_y_cargar()
     )
 
@@ -116,7 +116,11 @@ def build_historial_view(page: ft.Page):
         if dd_mes.value and dd_mes.value != "all": p_all = [p for p in p_all if p["fecha_atencion"].month == int(dd_mes.value)]
         if dd_año.value: p_all = [p for p in p_all if p["fecha_atencion"].year == int(dd_año.value)]
         f = buscador.value.upper() if buscador.value else ""
-        if f: p_all = [p for p in p_all if f in (p["dni"] or "") or f in (p["apellidos"] or "").upper() or f in (p["nombres"] or "").upper()]
+        if f: p_all = [p for p in p_all if
+            f in (p["dni"] or "") or
+            f in (p["apellidos"] or "").upper() or
+            f in (p["nombres"] or "").upper() or
+            f in (p["codigo_estudiante"] or "").upper()]
 
         # Ordenación Dinámica según cabecera
         if sort_info["index"] is not None:

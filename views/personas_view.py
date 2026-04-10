@@ -54,8 +54,8 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         heading_row_color=ft.Colors.with_opacity(0.1, ft.Colors.BLUE_400),
     )
     buscador = ft.TextField(
-        label="Buscar por DNI o Nombre...", prefix_icon=ft.Icons.SEARCH,
-        width=280, on_change=lambda e: cargar_datos(e.control.value)
+        label="Buscar por DNI, Nombre o Código...", prefix_icon=ft.Icons.SEARCH,
+        width=300, on_change=lambda e: cargar_datos(e.control.value)
     )
 
     # ── Filtros de Mes y Año (por defecto: mes actual) ────────────────────────
@@ -63,15 +63,17 @@ def build_personas_view(page: ft.Page, on_new_click=None):
     MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
              "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
     dd_mes = ft.Dropdown(
-        label="Mes", width=130,
+        label="Mes", width=155,
         value=str(_hoy.month),
-        options=[ft.dropdown.Option(key=str(i+1), text=MESES[i]) for i in range(12)],
+        options=[
+            ft.dropdown.Option(key="all", text="Todo el Año")
+        ] + [ft.dropdown.Option(key=str(i+1), text=MESES[i]) for i in range(12)],
         on_select=lambda _: cargar_datos(buscador.value)
     )
     dd_año = ft.Dropdown(
         label="Año", width=110,
         value=str(_hoy.year),
-        options=[ft.dropdown.Option(key=str(a), text=str(a)) for a in range(2025, _hoy.year + 5)],
+        options=[ft.dropdown.Option(key=str(a), text=str(a)) for a in range(2026, _hoy.year + 5)],
         on_select=lambda _: cargar_datos(buscador.value)
     )
     def limpiar_mes(e):
@@ -209,8 +211,8 @@ def build_personas_view(page: ft.Page, on_new_click=None):
     def cargar_datos(filtro=""):
         p_all = PersonaController.get_all(solo_activos=False)
         
-        # 1. Filtrar por mes/año seleccionado
-        if dd_mes.value:
+        # 1. Filtrar por mes/año
+        if dd_mes.value and dd_mes.value != "all":
             p_all = [p for p in p_all if p["fecha_atencion"].month == int(dd_mes.value)]
         if dd_año.value:
             p_all = [p for p in p_all if p["fecha_atencion"].year == int(dd_año.value)]
@@ -221,8 +223,11 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         # 3. Filtrar por buscador
         if filtro:
             f = filtro.upper()
-            p_filtered = [p for p in p_filtered if f in (p["dni"] or "") or
-                    f in (p["apellidos"] or "").upper() or f in (p["nombres"] or "").upper()]
+            p_filtered = [p for p in p_filtered if
+                f in (p["dni"] or "") or
+                f in (p["apellidos"] or "").upper() or
+                f in (p["nombres"] or "").upper() or
+                f in (p["codigo_estudiante"] or "").upper()]
         
         # 4. Ordenación Dinámica según cabecera
         if sort_info["index"] is not None:
