@@ -109,8 +109,23 @@ def build_historial_view(page: ft.Page):
             except: wb.save(filename); mostrar_exito(page, f"✔ en CarpetaLocal")
         except Exception as ex: mostrar_snackbar(page, f"Error: {str(ex)}", "red")
 
+    # ── Spinner de carga ──────────────────────────────────────────────────────
+    spinner = ft.Container(
+        content=ft.Column([
+            ft.ProgressRing(width=50, height=50, stroke_width=4),
+            ft.Text("Cargando datos...", size=12, color=ft.Colors.BLUE_200)
+        ], horizontal_alignment="center", spacing=12),
+        alignment=ft.Alignment(0, 0),
+        expand=True,
+        visible=False
+    )
+
     def cargar_datos():
         nonlocal datos_actuales
+        # Mostrar spinner
+        spinner.visible = True
+        try: spinner.update()
+        except: pass
         p_all = PersonaController.get_all(solo_activos=False)
         p_all = [p for p in p_all if p["activo"]]
         if dd_mes.value and dd_mes.value != "all": p_all = [p for p in p_all if p["fecha_atencion"].month == int(dd_mes.value)]
@@ -169,11 +184,13 @@ def build_historial_view(page: ft.Page):
                 ft.DataCell(ft.Column([ft.Text(p["facultad"], size=11), ft.Text(p["escuela"], size=10, color=ft.Colors.WHITE_54)], spacing=0, width=150)),
                 ft.DataCell(ft.Column([ft.Text(p["observaciones"] or "-", size=11, italic=True), ft.Text(p["direccion"] or "-", size=10, color=ft.Colors.WHITE_54)], spacing=0, width=200)),
             ]))
+        # Ocultar spinner al terminar
+        spinner.visible = False
         page.update()
 
     cargar_datos()
 
-    # ── Layout Flexible ──────────────────────────────────────────────────────
+    # ── Layout Flexible ──────────────────────────────────────────────
     area_tabla = ft.Container(
         content=ft.Row(
             [ft.Column([tabla], scroll=ft.ScrollMode.AUTO)],
@@ -182,6 +199,7 @@ def build_historial_view(page: ft.Page):
         ),
         expand=True,
     )
+    zona_contenido = ft.Stack([area_tabla, spinner], expand=True)
 
     return ft.Container(
         padding=ft.padding.only(left=25, right=25, top=20, bottom=10), expand=True,
@@ -194,8 +212,8 @@ def build_historial_view(page: ft.Page):
             ft.Divider(color=ft.Colors.BLUE_900),
             ft.Row([buscador, dd_mes, dd_año, ft.IconButton(ft.Icons.RESTART_ALT_ROUNDED, on_click=lambda _: reset_pag_y_cargar())], spacing=10),
             
-            # Tabla Expandible
-            area_tabla,
+            # Tabla / Spinner
+            zona_contenido,
             
             # Barra de Paginacion fija abajo
             ft.Container(

@@ -55,7 +55,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
     )
     buscador = ft.TextField(
         label="Buscar por DNI, Nombre o Código...", prefix_icon=ft.Icons.SEARCH,
-        width=300, on_change=lambda e: cargar_datos(e.control.value)
+        width=400, on_change=lambda e: cargar_datos(e.control.value)
     )
 
     # ── Filtros de Mes y Año (por defecto: mes actual) ────────────────────────
@@ -207,8 +207,24 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         estado_p["pagina"] += delta
         cargar_datos(buscador.value)
 
+    # ── Spinner de carga ──────────────────────────────────────────────────────
+    spinner_p = ft.Container(
+        content=ft.Column([
+            ft.ProgressRing(width=50, height=50, stroke_width=4),
+            ft.Text("Cargando datos...", size=12, color=ft.Colors.BLUE_200)
+        ], horizontal_alignment="center", spacing=12),
+        alignment=ft.Alignment(0, 0),
+        expand=True,
+        visible=False
+    )
+
     # ── Cargar filas ─────────────────────────────────────────────────────────
     def cargar_datos(filtro=""):
+        # Mostrar spinner
+        spinner_p.visible = True
+        try: spinner_p.update()
+        except: pass
+
         p_all = PersonaController.get_all(solo_activos=False)
         
         # 1. Filtrar por mes/año
@@ -332,6 +348,8 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                     ),
                 ], spacing=0)),
             ]))
+        # Ocultar spinner al terminar
+        spinner_p.visible = False
         page.update()
 
     # ── Tabs ─────────────────────────────────────────────────────────────────
@@ -355,8 +373,9 @@ def build_personas_view(page: ft.Page, on_new_click=None):
             scroll=ft.ScrollMode.ALWAYS,
             vertical_alignment=ft.CrossAxisAlignment.START
         ),
-        expand=True, # <--- ESTO es el secreto para que no se oculte la paginación
+        expand=True,
     )
+    zona_contenido_p = ft.Stack([area_tabla, spinner_p], expand=True)
 
     return ft.Container(padding=ft.padding.only(left=25, right=25, top=20, bottom=10), expand=True, content=ft.Column([
         ft.Row([
@@ -381,7 +400,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         buscador,
 
         # El área de la tabla ahora es EXPANDIBLE
-        area_tabla,
+        zona_contenido_p,
         
         # ── Barra de Paginación ──────────────────────────────────────────────
         ft.Container(

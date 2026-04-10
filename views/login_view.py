@@ -73,16 +73,16 @@ class LoginView(ft.Container):
             ], horizontal_alignment="center", alignment="center"),
         )
 
-        # ── Panel Logo (Derecha) ──────────────────────────────────────────────
+        # ── Panel Logo PNG (Derecha) ──────────────────────────────────────────
         image_panel = ft.Container(
             expand=1,
+            alignment=ft.Alignment(0, 0),
+            padding=ft.padding.only(right=40, top=20, bottom=20),
             content=ft.Image(
-                src="logo.svg",
+                src="logo_view.png",
                 width=500,
                 height=500,
             ),
-            alignment=ft.Alignment(0, 0),
-            padding=ft.padding.only(right=80, top=20, bottom=20),
         )
 
         self.content = ft.Row([
