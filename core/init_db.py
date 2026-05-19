@@ -8,7 +8,7 @@ FACULTADES_ESCUELAS = {
         "Ingeniería Agronómica",
         "Ingeniería Agroindustrial",
     ],
-    "Medicina Humana y Odontología": [
+    "Medicina": [
         "Medicina Humana",
         "Odontología",
     ],

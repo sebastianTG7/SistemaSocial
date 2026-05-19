@@ -20,6 +20,7 @@ class PersonaController:
                     "escuela_id": p.escuela_id,
                     "celular": p.celular, "correo": p.correo,
                     "direccion": p.direccion,
+                    "fecha_atencion": p.fecha_atencion,
                 }
             return None
         finally:
@@ -72,10 +73,10 @@ class PersonaController:
                 CatCasoSocial.nombre.label("caso_social"),
                 CatFacultad.nombre.label("facultad"),
                 CatEscuela.nombre.label("escuela")
-            ).join(CatTipoUsuario, Persona.tipo_usuario_id == CatTipoUsuario.id)\
-             .join(CatCasoSocial, Persona.caso_social_id == CatCasoSocial.id)\
-             .join(CatFacultad, Persona.facultad_id == CatFacultad.id)\
-             .join(CatEscuela, Persona.escuela_id == CatEscuela.id)
+            ).outerjoin(CatTipoUsuario, Persona.tipo_usuario_id == CatTipoUsuario.id)\
+             .outerjoin(CatCasoSocial, Persona.caso_social_id == CatCasoSocial.id)\
+             .outerjoin(CatFacultad, Persona.facultad_id == CatFacultad.id)\
+             .outerjoin(CatEscuela, Persona.escuela_id == CatEscuela.id)
             
             if solo_activos:
                 query = query.filter(Persona.activo == True)

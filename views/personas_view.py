@@ -106,13 +106,13 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         e_obs      = ft.TextField(label="Observaciones", value=p.observaciones or "", expand=True, multiline=True)
         e_sexo = ft.Dropdown(label="Sexo", value=p.sexo, expand=1,
             options=[ft.dropdown.Option("F","Femenino"), ft.dropdown.Option("M","Masculino")])
-        e_tipo = ft.Dropdown(label="Tipo Usuario", value=str(p.tipo_usuario_id), expand=1,
+        e_tipo = ft.Dropdown(label="Tipo Usuario", value=str(p.tipo_usuario_id) if p.tipo_usuario_id else None, expand=1,
             options=[ft.dropdown.Option(str(t.id), t.nombre) for t in tipos])
-        e_caso = ft.Dropdown(label="Caso Social", value=str(p.caso_social_id), expand=1,
+        e_caso = ft.Dropdown(label="Caso Social", value=str(p.caso_social_id) if p.caso_social_id else None, expand=1,
             options=[ft.dropdown.Option(str(c.id), c.nombre) for c in casos])
-        e_facu = ft.Dropdown(label="Facultad", value=str(p.facultad_id), expand=1,
+        e_facu = ft.Dropdown(label="Facultad", value=str(p.facultad_id) if p.facultad_id else None, expand=1,
             options=[ft.dropdown.Option(str(f.id), f.nombre) for f in facultades])
-        e_escu = ft.Dropdown(label="Escuela", value=str(p.escuela_id), expand=1)
+        e_escu = ft.Dropdown(label="Escuela", value=str(p.escuela_id) if p.escuela_id else None, expand=1)
         db_s.close()
 
         def ue(ev):
@@ -120,7 +120,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                 esc = CatalogController.get_escuelas_by_facultad(int(e_facu.value))
                 e_escu.options = [ft.dropdown.Option(str(es.id), es.nombre) for es in esc]
             if ev: e_escu.update()
-        e_facu.on_select = ue; ue(None); e_escu.value = str(p.escuela_id)
+        e_facu.on_select = ue; ue(None); e_escu.value = str(p.escuela_id) if p.escuela_id else None
 
         dlg = ft.AlertDialog(modal=True)   # se define antes para poder referenciarla
 
@@ -131,9 +131,12 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                 r.nombres = e_nombres.value.upper(); r.apellidos = e_apellidos.value.upper()
                 r.dni = e_dni.value; r.codigo_estudiante = e_codigo.value
                 r.edad = int(e_edad.value) if e_edad.value.isdigit() else None
-                r.sexo = e_sexo.value; r.tipo_usuario_id = int(e_tipo.value)
-                r.caso_social_id = int(e_caso.value); r.facultad_id = int(e_facu.value)
-                r.escuela_id = int(e_escu.value); r.celular = e_celular.value
+                r.sexo = e_sexo.value
+                r.tipo_usuario_id = int(e_tipo.value) if e_tipo.value else None
+                r.caso_social_id = int(e_caso.value) if e_caso.value else None
+                r.facultad_id = int(e_facu.value) if e_facu.value else None
+                r.escuela_id = int(e_escu.value) if e_escu.value else None
+                r.celular = e_celular.value
                 r.correo = e_correo.value; r.direccion = e_direccion.value
                 r.año_estudio = e_año.value; r.observaciones = e_obs.value
                 try: r.fecha_atencion = datetime.strptime(e_fecha.value, "%d/%m/%Y")

@@ -36,7 +36,12 @@ def build_registro_view(page: ft.Page):
                 f_correo.value = p["correo"] or ""
                 f_direccion.value = p["direccion"] or ""
                 
-                status_text.value = "ℹ Registro previo encontrado. Datos actualizados."
+                mes_nombre = "N/A"
+                if p.get("fecha_atencion"):
+                    MESES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
+                    mes_nombre = MESES[p["fecha_atencion"].month - 1]
+
+                status_text.value = f"ℹ Registro previo encontrado ({mes_nombre}). Datos actualizados."
                 status_text.color = ft.Colors.BLUE_400
             page.update()
 
@@ -80,7 +85,11 @@ def build_registro_view(page: ft.Page):
         if not f_fecha.value: f_fecha.error_text = "Requerido"; hay_errores = True
         if not f_nombres.value: f_nombres.error_text = "Requerido"; hay_errores = True
         if not f_apellidos.value: f_apellidos.error_text = "Requerido"; hay_errores = True
+        if not dd_sexo.value: dd_sexo.error_text = "Requerido"; hay_errores = True
+        if not dd_tipo.value: dd_tipo.error_text = "Requerido"; hay_errores = True
         if not dd_caso.value: dd_caso.error_text = "Requerido"; hay_errores = True
+        if not dd_facultad.value: dd_facultad.error_text = "Requerido"; hay_errores = True
+        if not dd_escuela.value: dd_escuela.error_text = "Requerido"; hay_errores = True
 
         if hay_errores: 
             status_text.value = "⚠ Corrija los errores."; status_text.color = ft.Colors.RED_400; page.update(); return
@@ -94,10 +103,10 @@ def build_registro_view(page: ft.Page):
             "sexo": dd_sexo.value,
             "codigo_estudiante": f_codigo.value,
             "año_estudio": f_año.value,
-            "tipo_usuario_id": int(dd_tipo.value),
-            "facultad_id": int(dd_facultad.value),
-            "escuela_id": int(dd_escuela.value),
-            "caso_social_id": int(dd_caso.value),
+            "tipo_usuario_id": int(dd_tipo.value) if dd_tipo.value else None,
+            "facultad_id": int(dd_facultad.value) if dd_facultad.value else None,
+            "escuela_id": int(dd_escuela.value) if dd_escuela.value else None,
+            "caso_social_id": int(dd_caso.value) if dd_caso.value else None,
             "celular": f_celular.value,
             "correo": f_correo.value,
             "direccion": f_direccion.value,
