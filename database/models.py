@@ -39,6 +39,14 @@ class CatCasoSocial(Base):
     
     personas = relationship("Persona", back_populates="caso_social")
 
+class CatModalidad(Base):
+    __tablename__ = "cat_modalidades"
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(50), nullable=False, unique=True)
+    activo = Column(Boolean, default=True)
+    
+    personas = relationship("Persona", back_populates="modalidad")
+
 # Modelo Principal: Usuario (Login)
 class User(Base):
     __tablename__ = "usuarios"
@@ -67,6 +75,8 @@ class Persona(Base):
     facultad_id = Column(Integer, ForeignKey("cat_facultades.id"))
     escuela_id = Column(Integer, ForeignKey("cat_escuelas.id"))
     caso_social_id = Column(Integer, ForeignKey("cat_casos_sociales.id"))
+    modalidad_id = Column(Integer, ForeignKey("cat_modalidades.id"))
+    registro_modalidad = Column(String(100))
     
     celular = Column(String(20))
     correo = Column(String(100))
@@ -80,3 +90,4 @@ class Persona(Base):
     facultad = relationship("CatFacultad", back_populates="personas")
     escuela = relationship("CatEscuela", back_populates="personas")
     caso_social = relationship("CatCasoSocial", back_populates="personas")
+    modalidad = relationship("CatModalidad", back_populates="personas")

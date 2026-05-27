@@ -45,6 +45,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
             ft.DataColumn(ft.Text("DNI/Código", weight="bold"), on_sort=lambda e: al_ordenar(e.column_index, e.ascending)),
             ft.DataColumn(ft.Text("Apellidos y Nombres", weight="bold"), on_sort=lambda e: al_ordenar(e.column_index, e.ascending)),
             ft.DataColumn(ft.Text("Cel./Correo", weight="bold")),
+            ft.DataColumn(ft.Text("Modalidad / Registro", weight="bold"), on_sort=lambda e: al_ordenar(e.column_index, e.ascending)),
             ft.DataColumn(ft.Text("Tipo/Caso", weight="bold"), on_sort=lambda e: al_ordenar(e.column_index, e.ascending)),
             ft.DataColumn(ft.Text("Facultad/Escuela", weight="bold"), on_sort=lambda e: al_ordenar(e.column_index, e.ascending)),
             ft.DataColumn(ft.Text("Obs./Dirección", weight="bold")),
@@ -58,10 +59,21 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         width=400, on_change=lambda e: cargar_datos(e.control.value)
     )
 
-    # ── Filtros de Mes y Año (por defecto: mes actual) ────────────────────────
+    # ── Filtros de Mes, Año y Modalidad ────────────────────────
     _hoy = datetime.now()
     MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
              "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
+             
+    # Cargar modalidades para el filtro
+    modalidades_cat = CatalogController.get_modalidades()
+    dd_modalidad_filtro = ft.Dropdown(
+        label="Modalidad", width=220, value="all",
+        options=[
+            ft.dropdown.Option(key="all", text="Todas las Modalidades")
+        ] + [ft.dropdown.Option(key=str(m.id), text=m.nombre) for m in modalidades_cat],
+        on_select=lambda _: cargar_datos(buscador.value)
+    )
+    
     dd_mes = ft.Dropdown(
         label="Mes", width=155,
         value=str(_hoy.month),
@@ -73,12 +85,14 @@ def build_personas_view(page: ft.Page, on_new_click=None):
     dd_año = ft.Dropdown(
         label="Año", width=110,
         value=str(_hoy.year),
-        options=[ft.dropdown.Option(key=str(a), text=str(a)) for a in range(2026, _hoy.year + 5)],
+        options=[ft.dropdown.Option(key="all", text="Todos")] + [ft.dropdown.Option(key=str(a), text=str(a)) for a in range(2026, _hoy.year + 5)],
         on_select=lambda _: cargar_datos(buscador.value)
     )
+    
     def limpiar_mes(e):
         dd_mes.value = str(datetime.now().month)
         dd_año.value = str(datetime.now().year)
+        dd_modalidad_filtro.value = "all"
         buscador.value = ""
         cargar_datos()
         page.update()
@@ -92,6 +106,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         tipos = CatalogController.get_tipos_usuario()
         casos = CatalogController.get_casos_sociales()
         facultades = CatalogController.get_facultades()
+        modalidades = CatalogController.get_modalidades()
 
         e_nombres  = ft.TextField(label="Nombres",    value=p.nombres,           expand=1)
         e_apellidos= ft.TextField(label="Apellidos",  value=p.apellidos,          expand=1)
@@ -101,7 +116,10 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         e_fecha    = ft.TextField(label="Fecha",      value=p.fecha_atencion.strftime("%d/%m/%Y"), expand=1)
         e_celular  = ft.TextField(label="Celular",    value=p.celular or "",      expand=1)
         e_correo   = ft.TextField(label="Correo",     value=p.correo or "",       expand=1)
-        e_año      = ft.TextField(label="Año Est.",   value=p.año_estudio or "",  expand=1)
+        e_año      = ft.Dropdown(
+            label="Año Est.", value=p.año_estudio, expand=1,
+            options=[ft.dropdown.Option(str(i), f"{i}° Año") for i in range(1, 11)] + [ft.dropdown.Option("Egresado", "Egresado")]
+        )
         e_direccion= ft.TextField(label="Dirección",  value=p.direccion or "",    expand=True)
         e_obs      = ft.TextField(label="Observaciones", value=p.observaciones or "", expand=True, multiline=True)
         e_sexo = ft.Dropdown(label="Sexo", value=p.sexo, expand=1,
@@ -113,6 +131,31 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         e_facu = ft.Dropdown(label="Facultad", value=str(p.facultad_id) if p.facultad_id else None, expand=1,
             options=[ft.dropdown.Option(str(f.id), f.nombre) for f in facultades])
         e_escu = ft.Dropdown(label="Escuela", value=str(p.escuela_id) if p.escuela_id else None, expand=1)
+        
+        # ── Modalidades en Edición ──
+        e_mod = ft.Dropdown(label="Modalidad", value=str(p.modalidad_id) if p.modalidad_id else "1", expand=1,
+            options=[ft.dropdown.Option(str(m.id), m.nombre) for m in modalidades])
+            
+        e_reg_mod = ft.TextField(label="Reg. Modalidad", value=p.registro_modalidad or "", expand=1)
+        
+        def ue_mod(ev):
+            from database.db_config import SessionLocal
+            from database.models import CatModalidad
+            if e_mod.value:
+                db = SessionLocal()
+                m = db.query(CatModalidad).filter(CatModalidad.id == int(e_mod.value)).first()
+                db.close()
+                if m and m.nombre not in ["General", "CEPREVAL"]:
+                    e_reg_mod.label = f"N° Registro/Carnet {m.nombre} (Opcional)"
+                    e_reg_mod.visible = True
+                else:
+                    e_reg_mod.visible = False
+            else:
+                e_reg_mod.visible = False
+            if ev: e_reg_mod.update()
+            
+        e_mod.on_select = ue_mod
+        
         db_s.close()
 
         def ue(ev):
@@ -121,8 +164,11 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                 e_escu.options = [ft.dropdown.Option(str(es.id), es.nombre) for es in esc]
             if ev: e_escu.update()
         e_facu.on_select = ue; ue(None); e_escu.value = str(p.escuela_id) if p.escuela_id else None
+        
+        # Ejecutar inicialización de visibilidad de modalidad
+        ue_mod(None)
 
-        dlg = ft.AlertDialog(modal=True)   # se define antes para poder referenciarla
+        dlg = ft.AlertDialog(modal=True)
 
         def guardar(e):
             db = SessionLocal()
@@ -136,6 +182,8 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                 r.caso_social_id = int(e_caso.value) if e_caso.value else None
                 r.facultad_id = int(e_facu.value) if e_facu.value else None
                 r.escuela_id = int(e_escu.value) if e_escu.value else None
+                r.modalidad_id = int(e_mod.value) if e_mod.value else None
+                r.registro_modalidad = e_reg_mod.value if e_reg_mod.visible else None
                 r.celular = e_celular.value
                 r.correo = e_correo.value; r.direccion = e_direccion.value
                 r.año_estudio = e_año.value; r.observaciones = e_obs.value
@@ -154,6 +202,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
             ft.Row([e_sexo, e_codigo, e_año], spacing=10),
             ft.Row([e_tipo, e_caso], spacing=10),
             ft.Row([e_facu, e_escu], spacing=10),
+            ft.Row([e_mod, e_reg_mod], spacing=10),
             ft.Row([e_celular, e_correo], spacing=10),
             e_direccion, e_obs,
         ], spacing=14, scroll=ft.ScrollMode.AUTO, tight=True))
@@ -223,7 +272,6 @@ def build_personas_view(page: ft.Page, on_new_click=None):
 
     # ── Cargar filas ─────────────────────────────────────────────────────────
     def cargar_datos(filtro=""):
-        # Mostrar spinner
         spinner_p.visible = True
         try: spinner_p.update()
         except: pass
@@ -233,22 +281,28 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         # 1. Filtrar por mes/año
         if dd_mes.value and dd_mes.value != "all":
             p_all = [p for p in p_all if p["fecha_atencion"].month == int(dd_mes.value)]
-        if dd_año.value:
+        if dd_año.value and dd_año.value != "all":
             p_all = [p for p in p_all if p["fecha_atencion"].year == int(dd_año.value)]
             
-        # 2. Filtrar por pestaña Activo/Inactivo
+        # 2. Filtrar por modalidad
+        filtro_mod = dd_modalidad_filtro.value
+        if filtro_mod and filtro_mod != "all":
+            p_all = [p for p in p_all if str(p.get("modalidad_id")) == filtro_mod]
+        
+        # 3. Filtrar por pestaña Activo/Inactivo
         p_filtered  = [p for p in p_all if p["activo"] == estado["mostrar_activos"]]
         
-        # 3. Filtrar por buscador
+        # 4. Filtrar por buscador
         if filtro:
             f = filtro.upper()
             p_filtered = [p for p in p_filtered if
                 f in (p["dni"] or "") or
                 f in (p["apellidos"] or "").upper() or
                 f in (p["nombres"] or "").upper() or
-                f in (p["codigo_estudiante"] or "").upper()]
+                f in (p["codigo_estudiante"] or "").upper() or
+                f in (p["modalidad"] or "").upper()]
         
-        # 4. Ordenación Dinámica según cabecera
+        # 5. Ordenación Dinámica según cabecera
         if sort_info["index"] is not None:
             idx = sort_info["index"]
             asc = sort_info["ascending"]
@@ -259,17 +313,18 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                 p_filtered.sort(key=lambda p: (p["dni"] or ""), reverse=not asc)
             elif idx == 3: # Apellidos
                 p_filtered.sort(key=lambda p: ((p["apellidos"] or "").upper(), (p["nombres"] or "").upper()), reverse=not asc)
-            elif idx == 5: # Tipo de Usuario
+            elif idx == 5: # Modalidad
+                p_filtered.sort(key=lambda p: (p["modalidad"] or ""), reverse=not asc)
+            elif idx == 6: # Tipo de Usuario
                 p_filtered.sort(key=lambda p: (p["tipo_usuario"] or ""), reverse=not asc)
-            elif idx == 6: # Facultad/Escuela
+            elif idx == 7: # Facultad/Escuela
                 p_filtered.sort(key=lambda p: ((p["facultad"] or "").upper(), (p["escuela"] or "").upper()), reverse=not asc)
-            elif idx == 0: # # Correlativo
+            elif idx == 0: # Correlativo
                 p_filtered.sort(key=lambda p: p["id"], reverse=not asc)
         else:
-            # Orden por defecto: alfabético ascendente
             p_filtered.sort(key=lambda p: ((p["apellidos"] or "").upper(), (p["nombres"] or "").upper()))
         
-        # 5. Lógica de Paginación (Slicing)
+        # 6. Lógica de Paginación (Slicing)
         total = len(p_filtered)
         estado_p["total_registros"] = total
         max_pags = max(1, (total + estado_p["por_pagina"] - 1) // estado_p["por_pagina"])
@@ -293,10 +348,16 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         if txt_inactivos.current:
             txt_inactivos.current.value= f"Inactivos ({sum(1 for p in p_all if not p.get('activo'))})"
 
-        # 6. Dibujar Tabla
+        # 7. Dibujar Tabla
         tabla.rows = []
         for i, p in enumerate(datos_paginados, inicio + 1):
             pid = p["id"]
+            
+            # Modalidad y Registro en Flet
+            reg_cod = p.get("registro_modalidad")
+            reg_cod_display = f"Reg: {reg_cod}" if reg_cod else "General" if (p.get("modalidad") == "General" or not p.get("modalidad")) else "Sin Código"
+            reg_cod_color = ft.Colors.GREEN_400 if reg_cod else ft.Colors.WHITE_54
+            
             tabla.rows.append(ft.DataRow(cells=[
                 ft.DataCell(ft.Text(str(i), size=13)),
                 ft.DataCell(ft.Text(p["fecha_atencion"].strftime("%d/%m/%Y"), size=12)),
@@ -307,11 +368,16 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                 ft.DataCell(ft.Column([
                     ft.Text(f"{p['apellidos']}, {p['nombres']}", weight="bold", size=12),
                     ft.Text(f"{p['edad'] or '-'} años, {p['sexo'] or '-'} ", size=10, color=ft.Colors.WHITE_54)
-                ], spacing=0, width=260)),
+                ], spacing=0, width=240)),
                 ft.DataCell(ft.Column([
                     ft.Text(p["celular"] or "-", size=12),
                     ft.Text(p["correo"] or "-", size=11, color=ft.Colors.BLUE_200)
                 ], spacing=0, width=120)),
+                # Modalidad / Registro Cell
+                ft.DataCell(ft.Column([
+                    ft.Text(p.get("modalidad") or "General", size=11, weight="bold", color=ft.Colors.BLUE_300),
+                    ft.Text(reg_cod_display, size=10, color=reg_cod_color, weight="bold")
+                ], spacing=0, width=150)),
                 ft.DataCell(ft.Column([
                     ft.Text(p["tipo_usuario"], size=11),
                     ft.Text(p["caso_social"], size=11, color=ft.Colors.GREEN_400, weight="bold")
@@ -323,7 +389,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                 ft.DataCell(ft.Column([
                     ft.Text(p["observaciones"] or "-", size=11, italic=True),
                     ft.Text(p["direccion"] or "-", size=10, color=ft.Colors.WHITE_54)
-                ], spacing=0, width=200)),
+                ], spacing=0, width=180)),
                 ft.DataCell(ft.Row([
                     ft.IconButton(
                         icon=ft.Icons.EDIT_ROUNDED, icon_color=ft.Colors.BLUE_400,
@@ -351,7 +417,6 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                     ),
                 ], spacing=0)),
             ]))
-        # Ocultar spinner al terminar
         spinner_p.visible = False
         page.update()
 
@@ -367,9 +432,6 @@ def build_personas_view(page: ft.Page, on_new_click=None):
 
     cargar_datos()
 
-    # ── Scroll 2D: Contenedor Elástico ──────────────────────────────────────
-    # Usamos expand=True para que el área de la tabla tome todo el espacio 
-    # sobrante y deje la paginación pegada abajo.
     area_tabla = ft.Container(
         content=ft.Row(
             [ft.Column([tabla], scroll=ft.ScrollMode.AUTO)],
@@ -386,7 +448,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
             ft.Text("Gestión de Estudiantes", size=24, weight="bold"),
             ft.Container(expand=True),
             ft.ElevatedButton("+ Nuevo", bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE,
-                              on_click=lambda _: on_new_click()),
+                               on_click=lambda _: on_new_click()),
         ]),
         ft.Divider(color=ft.Colors.BLUE_900),
         ft.Row([
@@ -397,8 +459,9 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                                                      ft.Text("Inactivos", ref=txt_inactivos)]),
                                      on_click=lambda _: ctab(False)), ii], spacing=2),
             ft.Container(expand=True),
+            dd_modalidad_filtro,
             dd_mes, dd_año,
-            ft.IconButton(ft.Icons.RESTART_ALT_ROUNDED, tooltip="Mes actual", on_click=limpiar_mes),
+            ft.IconButton(ft.Icons.RESTART_ALT_ROUNDED, tooltip="Limpiar Filtros", on_click=limpiar_mes),
         ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.CENTER),
         buscador,
 

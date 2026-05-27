@@ -1,8 +1,16 @@
 from database.db_config import SessionLocal
-from database.models import Persona, CatTipoUsuario, CatFacultad, CatEscuela, CatCasoSocial
+from database.models import Persona, CatTipoUsuario, CatFacultad, CatEscuela, CatCasoSocial, CatModalidad
 
 
 class CatalogController:
+    @staticmethod
+    def get_modalidades():
+        db = SessionLocal()
+        try:
+            return db.query(CatModalidad).filter(CatModalidad.activo == True).order_by(CatModalidad.nombre).all()
+        finally:
+            db.close()
+
     @staticmethod
     def get_tipos_usuario():
         db = SessionLocal()

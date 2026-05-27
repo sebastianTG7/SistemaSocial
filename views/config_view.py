@@ -1,7 +1,7 @@
 import flet as ft
 import os
 from database.db_config import SessionLocal
-from database.models import CatFacultad, CatEscuela, CatCasoSocial, CatTipoUsuario
+from database.models import CatFacultad, CatEscuela, CatCasoSocial, CatTipoUsuario, CatModalidad
 from core.ui_helpers import mostrar_snackbar, mostrar_exito
 from core.backup_manager import BackupManager
 
@@ -668,6 +668,10 @@ def build_config_view(page: ft.Page):
             )
         elif seccion == "escuelas":
             contenido.content = _tabla_crud_escuelas(page)
+        elif seccion == "modalidades":
+            contenido.content = _tabla_crud_simple(
+                page, CatModalidad, nombre_campo="nombre", titulo="Modalidades de Ingreso"
+            )
         elif seccion == "respaldos":
             contenido.content = _build_respaldos(page)
         page.update()
@@ -701,6 +705,7 @@ def build_config_view(page: ft.Page):
                     btn_nav("Casos Sociales", "casos", ft.Icons.LABEL_ROUNDED),
                     btn_nav("Facultades", "facultades", ft.Icons.SCHOOL_ROUNDED),
                     btn_nav("Escuelas", "escuelas", ft.Icons.CLASS_ROUNDED),
+                    btn_nav("Modalidades", "modalidades", ft.Icons.ASSIGNMENT_IND_ROUNDED),
                     btn_nav("Respaldos", "respaldos", ft.Icons.BACKUP_ROUNDED),
                 ], spacing=12),
                 bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.BLUE_700),

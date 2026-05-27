@@ -1,6 +1,6 @@
 from database.db_config import SessionLocal
 from sqlalchemy import extract, func, or_
-from database.models import Persona, CatTipoUsuario, CatCasoSocial, CatEscuela, CatFacultad
+from database.models import Persona, CatTipoUsuario, CatCasoSocial, CatEscuela, CatFacultad, CatModalidad
 
 class PersonaController:
     @staticmethod
@@ -21,6 +21,8 @@ class PersonaController:
                     "celular": p.celular, "correo": p.correo,
                     "direccion": p.direccion,
                     "fecha_atencion": p.fecha_atencion,
+                    "modalidad_id": p.modalidad_id,
+                    "registro_modalidad": p.registro_modalidad,
                 }
             return None
         finally:
@@ -46,6 +48,8 @@ class PersonaController:
                 facultad_id=datos.get("facultad_id"),
                 escuela_id=datos.get("escuela_id"),
                 caso_social_id=datos.get("caso_social_id"),
+                modalidad_id=datos.get("modalidad_id"),
+                registro_modalidad=datos.get("registro_modalidad"),
                 celular=datos.get("celular"),
                 correo=datos.get("correo"),
                 direccion=datos.get("direccion"),
@@ -69,14 +73,17 @@ class PersonaController:
                 Persona.sexo, Persona.edad, Persona.celular, Persona.correo,
                 Persona.direccion, Persona.fecha_atencion, Persona.activo,
                 Persona.codigo_estudiante, Persona.año_estudio, Persona.observaciones,
+                Persona.modalidad_id, Persona.registro_modalidad,
                 CatTipoUsuario.nombre.label("tipo_usuario"),
                 CatCasoSocial.nombre.label("caso_social"),
                 CatFacultad.nombre.label("facultad"),
-                CatEscuela.nombre.label("escuela")
+                CatEscuela.nombre.label("escuela"),
+                CatModalidad.nombre.label("modalidad")
             ).outerjoin(CatTipoUsuario, Persona.tipo_usuario_id == CatTipoUsuario.id)\
              .outerjoin(CatCasoSocial, Persona.caso_social_id == CatCasoSocial.id)\
              .outerjoin(CatFacultad, Persona.facultad_id == CatFacultad.id)\
-             .outerjoin(CatEscuela, Persona.escuela_id == CatEscuela.id)
+             .outerjoin(CatEscuela, Persona.escuela_id == CatEscuela.id)\
+             .outerjoin(CatModalidad, Persona.modalidad_id == CatModalidad.id)
             
             if solo_activos:
                 query = query.filter(Persona.activo == True)

@@ -12,6 +12,7 @@ def build_registro_view(page: ft.Page):
     tipos_usuario = CatalogController.get_tipos_usuario()
     casos_sociales = CatalogController.get_casos_sociales()
     facultades = CatalogController.get_facultades()
+    modalidades = CatalogController.get_modalidades()
 
     # ── Campos con Lógica de Autocompletado ──────────────────────────────────
     def on_dni_change(e):
@@ -23,7 +24,7 @@ def build_registro_view(page: ft.Page):
                 f_edad.value = str(p["edad"]) if p["edad"] else ""
                 dd_sexo.value = p["sexo"]
                 f_codigo.value = p["codigo_estudiante"] or ""
-                f_año.value = p["año_estudio"] or ""
+                dd_año.value = p["año_estudio"] or None
                 dd_tipo.value = str(p["tipo_usuario_id"]) if p["tipo_usuario_id"] else None
                 dd_facultad.value = str(p["facultad_id"]) if p["facultad_id"] else None
                 
@@ -31,6 +32,10 @@ def build_registro_view(page: ft.Page):
                 if dd_facultad.value:
                     on_facultad_change(None)
                     dd_escuela.value = str(p["escuela_id"]) if p["escuela_id"] else None
+                
+                dd_modalidad.value = str(p["modalidad_id"]) if p["modalidad_id"] else "1"
+                f_registro_modalidad.value = p["registro_modalidad"] or ""
+                on_modalidad_change(None)
                 
                 f_celular.value = p["celular"] or ""
                 f_correo.value = p["correo"] or ""
@@ -52,7 +57,10 @@ def build_registro_view(page: ft.Page):
     f_apellidos = ft.TextField(label="Apellidos *", expand=True)
     f_edad = ft.TextField(label="Edad", width=90, max_length=3)
     f_codigo = ft.TextField(label="Código Estudiante", width=190)
-    f_año = ft.TextField(label="Año de Estudio", width=140)
+    dd_año = ft.Dropdown(
+        label="Año de Estudio", width=140,
+        options=[ft.dropdown.Option(str(i), f"{i}° Año") for i in range(1, 11)] + [ft.dropdown.Option("Egresado", "Egresado")]
+    )
     f_celular = ft.TextField(label="Celular", width=180)
     f_correo = ft.TextField(label="Correo Electrónico", expand=True)
     f_direccion = ft.TextField(label="Dirección", expand=True)
@@ -73,11 +81,41 @@ def build_registro_view(page: ft.Page):
     dd_caso = ft.Dropdown(label="Caso Social *", width=200, options=[ft.dropdown.Option(str(c.id), c.nombre) for c in casos_sociales])
     dd_facultad = ft.Dropdown(label="Facultad *", expand=True, on_select=on_facultad_change, options=[ft.dropdown.Option(str(f.id), f.nombre) for f in facultades])
     
+    # ── Modalidades ──
+    dd_modalidad = ft.Dropdown(
+        label="Modalidad de Ingreso *", width=240,
+        options=[ft.dropdown.Option(str(m.id), m.nombre) for m in modalidades],
+        value="1"
+    )
+    f_registro_modalidad = ft.TextField(
+        label="Código/Registro de Modalidad",
+        visible=False,
+        expand=True
+    )
+    
+    def on_modalidad_change(e):
+        from database.db_config import SessionLocal
+        from database.models import CatModalidad
+        if dd_modalidad.value:
+            db = SessionLocal()
+            m = db.query(CatModalidad).filter(CatModalidad.id == int(dd_modalidad.value)).first()
+            db.close()
+            if m and m.nombre not in ["General", "CEPREVAL"]:
+                f_registro_modalidad.label = f"N° Registro/Carnet {m.nombre} (Opcional)"
+                f_registro_modalidad.visible = True
+            else:
+                f_registro_modalidad.visible = False
+        else:
+            f_registro_modalidad.visible = False
+        page.update()
+        
+    dd_modalidad.on_select = on_modalidad_change
+    
     status_text = ft.Text("", size=13, weight="bold")
 
     def registrar(e):
         # Validaciones
-        for c in [f_dni, f_fecha, f_nombres, f_apellidos, dd_sexo, dd_tipo, dd_facultad, dd_escuela, dd_caso]:
+        for c in [f_dni, f_fecha, f_nombres, f_apellidos, dd_sexo, dd_tipo, dd_facultad, dd_escuela, dd_caso, dd_modalidad]:
             c.error_text = None
         
         hay_errores = False
@@ -90,6 +128,7 @@ def build_registro_view(page: ft.Page):
         if not dd_caso.value: dd_caso.error_text = "Requerido"; hay_errores = True
         if not dd_facultad.value: dd_facultad.error_text = "Requerido"; hay_errores = True
         if not dd_escuela.value: dd_escuela.error_text = "Requerido"; hay_errores = True
+        if not dd_modalidad.value: dd_modalidad.error_text = "Requerido"; hay_errores = True
 
         if hay_errores: 
             status_text.value = "⚠ Corrija los errores."; status_text.color = ft.Colors.RED_400; page.update(); return
@@ -102,11 +141,13 @@ def build_registro_view(page: ft.Page):
             "edad": f_edad.value,
             "sexo": dd_sexo.value,
             "codigo_estudiante": f_codigo.value,
-            "año_estudio": f_año.value,
+            "año_estudio": dd_año.value,
             "tipo_usuario_id": int(dd_tipo.value) if dd_tipo.value else None,
             "facultad_id": int(dd_facultad.value) if dd_facultad.value else None,
             "escuela_id": int(dd_escuela.value) if dd_escuela.value else None,
             "caso_social_id": int(dd_caso.value) if dd_caso.value else None,
+            "modalidad_id": int(dd_modalidad.value) if dd_modalidad.value else None,
+            "registro_modalidad": f_registro_modalidad.value if f_registro_modalidad.visible else None,
             "celular": f_celular.value,
             "correo": f_correo.value,
             "direccion": f_direccion.value,
@@ -122,10 +163,12 @@ def build_registro_view(page: ft.Page):
         page.update()
 
     def limpiar(e=None):
-        for campo in [f_dni, f_nombres, f_apellidos, f_edad, f_codigo, f_año, f_celular, f_correo, f_direccion, f_observaciones]:
+        for campo in [f_dni, f_nombres, f_apellidos, f_edad, f_codigo, f_celular, f_correo, f_direccion, f_observaciones, f_registro_modalidad]:
             campo.value = ""
-        for dd in [dd_sexo, dd_tipo, dd_caso, dd_facultad, dd_escuela]:
+        for dd in [dd_sexo, dd_tipo, dd_caso, dd_facultad, dd_escuela, dd_año]:
             dd.value = None
+        dd_modalidad.value = "1"
+        f_registro_modalidad.visible = False
         f_fecha.value = datetime.now().strftime("%d/%m/%Y")
         dd_escuela.disabled = True
         status_text.value = ""
@@ -140,8 +183,8 @@ def build_registro_view(page: ft.Page):
             ft.Divider(color=ft.Colors.BLUE_900),
             ft.Row([f_dni, f_fecha, status_text], spacing=20, vertical_alignment="center"),
             ft.Row([f_nombres, f_apellidos], spacing=20),
-            ft.Row([f_edad, dd_sexo, f_codigo, f_año], spacing=20),
-            ft.Row([dd_tipo, dd_caso], spacing=20),
+            ft.Row([f_edad, dd_sexo, dd_modalidad, f_registro_modalidad], spacing=20),
+            ft.Row([dd_tipo, dd_caso, f_codigo, dd_año], spacing=20),
             ft.Row([dd_facultad, dd_escuela], spacing=20),
             ft.Row([f_celular, f_correo], spacing=20),
             f_direccion,
