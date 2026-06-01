@@ -31,6 +31,7 @@ class CatEscuela(Base):
     facultad = relationship("CatFacultad", back_populates="escuelas")
     personas = relationship("Persona", back_populates="escuela")
 
+# Tipo de Casos Sociales: Orientacion, Evaluacion, Seguimiento-Evaluacion y Seguimiento.
 class CatCasoSocial(Base):
     __tablename__ = "cat_casos_sociales"
     id = Column(Integer, primary_key=True, index=True)
@@ -39,6 +40,7 @@ class CatCasoSocial(Base):
     
     personas = relationship("Persona", back_populates="caso_social")
 
+# Tipo de Modalidades de ingreso: General, Cepreval, Discapacidad, Hijos de campesino, Violencia Politica ...
 class CatModalidad(Base):
     __tablename__ = "cat_modalidades"
     id = Column(Integer, primary_key=True, index=True)
@@ -57,7 +59,7 @@ class User(Base):
     rol = Column(String(20), default="operador") # administrador, operador
     activo = Column(Boolean, default=True)
 
-# Modelo Principal: Persona (Bitácora de Atenciones)
+# Modelo Principal: Persona o Estudiantes (Bitácora de Atenciones)
 class Persona(Base):
     __tablename__ = "personas"
     id = Column(Integer, primary_key=True, index=True)
