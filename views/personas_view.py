@@ -3,14 +3,19 @@ from controllers.persona_controller import PersonaController
 from controllers.catalog_controller import CatalogController
 from database.db_config import SessionLocal
 from database.models import Persona
-from core.ui_helpers import mostrar_exito
+from core.ui_helpers import mostrar_exito, mostrar_snackbar
 from datetime import datetime
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill
+import os
+from views.components.socioeconomic_dialog import mostrar_ficha_socioeconomica_dialog
 
 
 def build_personas_view(page: ft.Page, on_new_click=None):
     """Vista de Gestión de Personas — Diálogos via page.overlay (compatible Flet 0.83)."""
 
     estado = {"mostrar_activos": True}
+    datos_actuales = []  # Lista de datos filtrados para Excel
     txt_activos = ft.Ref[ft.Text]()
     txt_inactivos = ft.Ref[ft.Text]()
 
@@ -55,8 +60,8 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         heading_row_color=ft.Colors.with_opacity(0.1, ft.Colors.BLUE_400),
     )
     buscador = ft.TextField(
-        label="Buscar por DNI, Nombre o Código...", prefix_icon=ft.Icons.SEARCH,
-        width=400, on_change=lambda e: cargar_datos(e.control.value)
+        hint_text="Buscar por DNI, Nombre o Código...", prefix_icon=ft.Icons.SEARCH,
+        width=300, on_change=lambda e: cargar_datos(e.control.value)
     )
 
     # ── Filtros de Mes, Año y Modalidad ────────────────────────
@@ -259,6 +264,46 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         estado_p["pagina"] += delta
         cargar_datos(buscador.value)
 
+    # ── Exportación Excel ────────────────────────────────────────────────────
+    def exportar_excel(e):
+        if not datos_actuales:
+            mostrar_snackbar(page, "No hay datos para exportar", "red")
+            return
+        try:
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            headers = ["N°", "DNI", "APELLIDO Y NOMBRES", "EDAD", "SEXO", "TIPO USUARIO", "CODIGO EST.", "ESCUELA", "CASO SOCIAL"]
+            fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+            font = Font(color="FFFFFF", bold=True)
+            for col, h in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col, value=h)
+                cell.fill = fill; cell.font = font; cell.alignment = Alignment(horizontal="center")
+            
+            for i, p in enumerate(datos_actuales, 1):
+                ws.append([
+                    i, 
+                    p.get("dni","-"), 
+                    f"{p['apellidos']}, {p['nombres']}".upper(), 
+                    p.get("edad","-"), 
+                    p.get("sexo","-"), 
+                    p.get("tipo_usuario","-"), 
+                    p.get("codigo_estudiante","-"), 
+                    p.get("escuela","-"), 
+                    p.get("caso_social","-")
+                ])
+                
+            periodo = "Anual" if dd_mes.value == "all" else MESES[int(dd_mes.value)-1]
+            mod_nombre = "Todas"
+            if dd_modalidad_filtro.value != "all" and dd_modalidad_filtro.value is not None:
+                mod_nombre = next((m.nombre for m in modalidades_cat if str(m.id) == dd_modalidad_filtro.value), "Modalidad")
+                
+            estado_tag = "Activos" if estado["mostrar_activos"] else "Inactivos"
+            filename = f"Reporte_Estudiantes_{estado_tag}_{mod_nombre}_{periodo}_{dd_año.value}.xlsx"
+            filepath = os.path.join(os.path.expanduser("~"), "Downloads", filename)
+            try: wb.save(filepath); mostrar_exito(page, f"✔ en Descargas")
+            except: wb.save(filename); mostrar_exito(page, f"✔ en CarpetaLocal")
+        except Exception as ex: mostrar_snackbar(page, f"Error: {str(ex)}", "red")
+
     # ── Spinner de carga ──────────────────────────────────────────────────────
     spinner_p = ft.Container(
         content=ft.Column([
@@ -324,6 +369,9 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         else:
             p_filtered.sort(key=lambda p: ((p["apellidos"] or "").upper(), (p["nombres"] or "").upper()))
         
+        nonlocal datos_actuales
+        datos_actuales = p_filtered
+
         # 6. Lógica de Paginación (Slicing)
         total = len(p_filtered)
         estado_p["total_registros"] = total
@@ -447,9 +495,10 @@ def build_personas_view(page: ft.Page, on_new_click=None):
             ft.Icon(ft.Icons.SCHOOL_ROUNDED, color=ft.Colors.GREEN_400, size=28),
             ft.Text("Gestión de Estudiantes", size=24, weight="bold"),
             ft.Container(expand=True),
+            ft.ElevatedButton("Excel", icon=ft.Icons.FILE_DOWNLOAD, bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE, on_click=exportar_excel),
             ft.ElevatedButton("+ Nuevo", bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE,
                                on_click=lambda _: on_new_click()),
-        ]),
+        ], spacing=10),
         ft.Divider(color=ft.Colors.BLUE_900),
         ft.Row([
             ft.Column([ft.TextButton(content=ft.Row([ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, size=16),
@@ -458,12 +507,12 @@ def build_personas_view(page: ft.Page, on_new_click=None):
             ft.Column([ft.TextButton(content=ft.Row([ft.Icon(ft.Icons.BLOCK_OUTLINED, size=16),
                                                      ft.Text("Inactivos", ref=txt_inactivos)]),
                                      on_click=lambda _: ctab(False)), ii], spacing=2),
-            ft.Container(expand=True),
+            ft.Container(width=10),
+            buscador,
             dd_modalidad_filtro,
             dd_mes, dd_año,
             ft.IconButton(ft.Icons.RESTART_ALT_ROUNDED, tooltip="Limpiar Filtros", on_click=limpiar_mes),
-        ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-        buscador,
+        ], spacing=10, wrap=True, vertical_alignment=ft.CrossAxisAlignment.CENTER),
 
         # El área de la tabla ahora es EXPANDIBLE
         zona_contenido_p,

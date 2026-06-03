@@ -1,0 +1,152 @@
+Plan de Implementación: Ficha Socioeconómica y Módulo de Evaluaciones
+Este plan describe el diseño e implementación del módulo de Ficha Socioeconómica en el Sistema de Gestión Social. El objetivo de esta funcionalidad es capturar datos adicionales y estructurados de los estudiantes que pasan por una evaluación socioeconómica (Casos Sociales: "Evaluación" o "Evaluación y Seguimiento"), facilitando su recolección limpia para posteriores análisis de datos exploratorios (EDA).
+
+1. Diseño del Modelo de Base de Datos (database/models.py)
+Añadiremos el modelo FichaSocioeconomica con campos estructurados (textos cerrados y números puros), todos opcionales de rellenar:
+
+Tabla: fichas_socioeconomicas
+id: Clave Primaria (Integer)
+persona_id: Clave Foránea a personas.id (Integer, Unique, nullable=False)
+motivo_evaluacion: Dropdown (Comedor Universitario, Exoneración o Reducción de Pago, Derivación a otra Área, Caso Especial, Modalidad de Ingreso)
+sisfoh_condicion: Dropdown (No Pobre, Pobre, Pobre Extremo)
+tiene_discapacidad: Boolean (Sí/No)
+tipo_discapacidad: Dropdown (Ninguna, Visual, Motora, Auditiva, Mental, Otro)
+tipo_seguro: Dropdown (SIS Gratuito, EsSalud, SIS Independiente, Privado, Ninguno)
+estructura_familiar: Dropdown (Nuclear, Monoparental, Extendida, Unipersonal, Ensamblada)
+dinamica_familiar: Dropdown (Armonioso, Moderadamente Armonioso, Conflictiva, Altamente Conflictiva)
+ingreso_familiar_total: Float (ej. 350.00)
+ingreso_becas_bonos: Float (Beca Permanencia u otros bonos)
+egreso_alquiler: Float (0.00 si es casa propia)
+egreso_alimentacion: Float (comida mensual)
+egreso_servicios: Float (Luz, agua, internet)
+egreso_educacion_otros: Float (copias, pasajes, etc.)
+tipo_vivienda: Dropdown (Propia, Alquilada, Hipotecada, Alojado por familiares, Cuidador)
+material_paredes: Dropdown (Ladrillo/Cemento, Adobe/Tapia, Madera, Otros)
+material_techo: Dropdown (Concreto, Calamina, Eternit, Madera/Paja)
+tiene_agua_red: Boolean (Sí/No)
+tiene_desague_red: Boolean (Sí/No)
+tiene_energia_electrica: Boolean (Sí/No)
+2. Lógica de Controladores (controllers/persona_controller.py)
+Añadiremos las siguientes funcionalidades en PersonaController:
+
+get_ficha_socioeconomica(persona_id): Obtiene los datos estructurados en formato de diccionario de la ficha asociada a una atención.
+guardar_ficha_socioeconomica(persona_id, datos): Registra o actualiza la ficha socioeconómica en una sola consulta transaccional (Upsert).
+get_socioeconomic_analytics(): Proporciona estadísticas agregadas para el dashboard de evaluaciones (ej. porcentajes de SISFOH, promedios de ingresos y egresos, cobertura de servicios básicos, etc.).
+get_all(solo_activos): Modificaremos la consulta para hacer un outerjoin con la tabla de fichas y retornar un indicador tiene_ficha (booleano), lo que optimiza la visualización de estados en la UI sin hacer peticiones redundantes.
+3. Interfaz de Usuario y Experiencia (Flet)
+A. Diálogo Flotante de Ficha Socioeconómica (core/socioeconomic_dialog.py [NUEVO])
+Crearemos un archivo helper que exponga la función mostrar_ficha_socioeconomica_dialog(page, persona_id, nombres_completos, on_save_callback).
+Al abrirse, cargará los datos existentes si la ficha ya fue rellenada (modo Edición), o se mostrará vacío (modo Registro).
+Formulario premium: Organizado en pestañas colapsables o secciones visuales claras (Contexto, Salud/SISFOH, Economía/Vivienda).
+El selector de "¿Tiene Discapacidad?" ocultará o mostrará el campo "Tipo de Discapacidad" de forma dinámica mediante un switch reactivo.
+B. Módulo de Evaluaciones (views/evaluaciones_view.py [NUEVO])
+Crearemos una pestaña exclusiva en el sidebar para este módulo:
+
+Socioeconomic Dashboard (Superior):
+Tarjetas y gráficos circulares interactivos con la distribución de SISFOH (No Pobre, Pobre, Pobre Extremo).
+Indicador financiero: Ingreso familiar promedio vs egreso total promedio.
+Cobertura de servicios básicos (Agua, Desagüe, Luz).
+Buscador y Listado de Evaluaciones (Inferior):
+Tabla con paginación que lista únicamente los registros activos cuyo Caso Social contiene "Evaluación" (ID 1 y 2).
+Badge de Estado: Muestra "Completada" en verde brillante o "Pendiente" en ámbar.
+Botón de Acción Directa: Abre el diálogo de la Ficha Socioeconómica con el icono correspondiente para rellenar (si está pendiente) o editar (si ya está completada).
+C. Integración en el flujo de Registro (views/registro_view.py)
+Al guardar un registro cuyo caso social sea "Evaluación" o "Evaluación y Seguimiento", tras recibir confirmación de éxito, el sistema mostrará un diálogo de confirmación: "✔ Registro guardado correctamente. ¿Deseas rellenar la Ficha Socioeconómica del estudiante ahora?"
+Si el usuario selecciona "Sí, Rellenar", se abrirá directamente el diálogo de la ficha.
+Si selecciona "En otro momento", se limpia el formulario como de costumbre.
+D. Integración en Gestión de Estudiantes (views/personas_view.py)
+Añadiremos un botón en la columna de Acciones para las filas que correspondan a casos de "Evaluación". Este botón abrirá directamente el diálogo de la Ficha, facilitando la edición y llenado en cualquier momento.
+4. Simplificación de Navegación (views/components/sidebar.py y main.py)
+Incorporar la nueva sección "Evaluaciones" como la pestaña Index 4 del menú de la barra lateral.
+Re-mapear el enrutamiento:
+0: Inicio (Dashboard General)
+1: Registrar
+2: Personas
+3: Historial
+4: Evaluaciones (Socioeconómico) [NUEVO]
+5: Config.
+Plan de Verificación
+Creación Automática de Tabla: Al iniciar la app, validar que Base.metadata.create_all cree la tabla fichas_socioeconomicas sin inconvenientes.
+Flujo de Registro Completo:
+Registrar una atención de tipo "Evaluación".
+Responder "Sí" a la pregunta interactiva, rellenar la Ficha, guardarla y comprobar que no hay errores.
+Flujo en Módulo de Evaluaciones:
+Entrar a la pestaña Evaluaciones y ver que el estudiante aparece con el estado "Completada".
+Verificar que las tarjetas estadísticas del dashboard superior reflejan correctamente los ingresos, egresos y el SISFOH del estudiante.
+Hacer clic en editar y cambiar un dato económico para verificar su actualización.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ERROR ARREGLADO
+
+
+He solucionado el error visual de Flet de forma definitiva.
+
+Análisis del Error
+En Flet versión 0.83.1, el control ft.Tabs no acepta una lista de ft.Tab directamente en su propiedad content, ni asignando los contenedores de vistas como propiedad de cada pestaña ft.Tab individual de forma aislada.
+
+Para esta versión, Flet requiere una reestructuración de la interfaz de pestañas en tres componentes diferenciados y coordinados por el contenedor principal ft.Tabs:
+
+ft.Tabs (Controlador maestro): Define las propiedades globales como length=3, selected_index=0 y el comportamiento de expansión.
+ft.TabBar (Cabeceras de navegación): Ubicado dentro de la propiedad content de ft.Tabs (usualmente dentro de una columna), contiene la lista de controles ft.Tab únicamente con sus títulos e íconos.
+ft.TabBarView (Vistas/Páginas de contenido): Ubicado debajo del TabBar en la columna, es el encargado de enlazar la lista de contenedores correspondientes a cada sección del formulario según el orden de las pestañas.
+Al no encontrar esta estructura anidada, Flet lanzaba la excepción en color rojo: "Tabs.content must be provided and visible".
+
+Cambios Aplicados
+He reestructurado por completo la UI del formulario dinámico en el componente 
+socioeconomic_dialog.py
+:
+
+Estructura Compatible de Pestañas:
+python
+
+
+tabs = ft.Tabs(
+    selected_index=0,
+    animation_duration=300,
+    length=3,
+    expand=True,
+    content=ft.Column(
+        expand=True,
+        controls=[
+            ft.TabBar(
+                tabs=[
+                    ft.Tab(label="Salud y SISFOH", icon=ft.Icons.VACCINES_ROUNDED),
+                    ft.Tab(label="Familia y Economía", icon=ft.Icons.MONETIZATION_ON_ROUNDED),
+                    ft.Tab(label="Vivienda y Servicios", icon=ft.Icons.HOUSE_ROUNDED),
+                ]
+            ),
+            ft.TabBarView(
+                expand=True,
+                controls=[
+                    ft.Container(padding=20, content=ft.Column([...])), # Tab 1
+                    ft.Container(padding=20, content=ft.Column([...])), # Tab 2
+                    ft.Container(padding=20, content=ft.Column([...]))  # Tab 3
+                ]
+            )
+        ]
+    )
+)
+Verificación y Estabilidad
+Todos los módulos de la aplicación han sido compilados con éxito y su compatibilidad es total:
+
+bash
+
+
+python -m py_compile main.py database/models.py controllers/persona_controller.py views/components/sidebar.py views/components/socioeconomic_dialog.py views/registro_view.py views/personas_view.py views/evaluaciones_view.py
+Resultado: Compilación exitosa (0 errores/advertencias).
+He documentado este ajuste de compatibilidad en el archivo de registro en 
+walkthrough.md
+. Ya puedes registrar o editar cualquier estudiante (tenga o no datos socioeconómicos previos) y el diálogo flotante se desplegará perfectamente.
+

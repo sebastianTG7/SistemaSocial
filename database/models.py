@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Enum, Text
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Enum, Text, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .db_config import Base
@@ -93,3 +93,43 @@ class Persona(Base):
     escuela = relationship("CatEscuela", back_populates="personas")
     caso_social = relationship("CatCasoSocial", back_populates="personas")
     modalidad = relationship("CatModalidad", back_populates="personas")
+    ficha_socioeconomica = relationship("FichaSocioeconomica", uselist=False, back_populates="persona", cascade="all, delete-orphan")
+
+
+class FichaSocioeconomica(Base):
+    __tablename__ = "fichas_socioeconomicas"
+    id = Column(Integer, primary_key=True, index=True)
+    persona_id = Column(Integer, ForeignKey("personas.id"), nullable=False, unique=True)
+    
+    # Contexto de la Evaluación
+    motivo_evaluacion = Column(String(100))
+    
+    # Clasificación de Vulnerabilidad (SISFOH y Salud)
+    sisfoh_condicion = Column(String(50))
+    tiene_discapacidad = Column(Boolean, default=False)
+    tipo_discapacidad = Column(String(50))
+    tipo_seguro = Column(String(50))
+    
+    # Estructura y Dinámica Familiar
+    estructura_familiar = Column(String(50))
+    dinamica_familiar = Column(String(50))
+    
+    # Datos Económicos
+    ingreso_familiar_total = Column(Float, default=0.0)
+    ingreso_becas_bonos = Column(Float, default=0.0)
+    egreso_alquiler = Column(Float, default=0.0)
+    egreso_alimentacion = Column(Float, default=0.0)
+    egreso_servicios = Column(Float, default=0.0)
+    egreso_educacion_otros = Column(Float, default=0.0)
+    
+    # Características de la Vivienda
+    tipo_vivienda = Column(String(50))
+    material_paredes = Column(String(50))
+    material_techo = Column(String(50))
+    tiene_agua_red = Column(Boolean, default=False)
+    tiene_desague_red = Column(Boolean, default=False)
+    tiene_energia_electrica = Column(Boolean, default=False)
+    
+    # Relaciones
+    persona = relationship("Persona", back_populates="ficha_socioeconomica")
+

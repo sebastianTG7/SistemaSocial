@@ -26,12 +26,12 @@ class Sidebar(ft.NavigationRail):
             ft.NavigationRailDestination(
                 icon=ft.Icons.LIST_ALT_OUTLINED,
                 selected_icon=ft.Icons.LIST_ALT_ROUNDED,
-                label="Personas",
+                label="Estudiantes",
             ),
             ft.NavigationRailDestination(
-                icon=ft.Icons.HISTORY_ROUNDED,
-                selected_icon=ft.Icons.HISTORY_ROUNDED,
-                label="Historial",
+                icon=ft.Icons.ASSIGNMENT_IND_OUTLINED,
+                selected_icon=ft.Icons.ASSIGNMENT_IND_ROUNDED,
+                label="Evaluaciones",
             ),
             ft.NavigationRailDestination(
                 icon=ft.Icons.SETTINGS_OUTLINED,
