@@ -194,6 +194,7 @@ class PersonaController:
                     "sisfoh_condicion": ficha.sisfoh_condicion,
                     "tiene_discapacidad": ficha.tiene_discapacidad,
                     "tipo_discapacidad": ficha.tipo_discapacidad,
+                    "nivel_de_discapacidad": ficha.nivel_de_discapacidad,
                     "tipo_seguro": ficha.tipo_seguro,
                     "estructura_familiar": ficha.estructura_familiar,
                     "dinamica_familiar": ficha.dinamica_familiar,
@@ -229,6 +230,7 @@ class PersonaController:
             ficha.sisfoh_condicion = datos.get("sisfoh_condicion")
             ficha.tiene_discapacidad = bool(datos.get("tiene_discapacidad"))
             ficha.tipo_discapacidad = datos.get("tipo_discapacidad") if bool(datos.get("tiene_discapacidad")) else "Ninguna"
+            ficha.nivel_de_discapacidad = datos.get("nivel_de_discapacidad") if bool(datos.get("tiene_discapacidad")) else "Ninguno"
             ficha.tipo_seguro = datos.get("tipo_seguro")
             ficha.estructura_familiar = datos.get("estructura_familiar")
             ficha.dinamica_familiar = datos.get("dinamica_familiar")

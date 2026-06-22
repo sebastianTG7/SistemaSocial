@@ -101,7 +101,10 @@ def build_registro_view(page: ft.Page):
             m = db.query(CatModalidad).filter(CatModalidad.id == int(dd_modalidad.value)).first()
             db.close()
             if m and m.nombre not in ["General", "CEPREVAL"]:
-                f_registro_modalidad.label = f"N° Registro/Carnet {m.nombre} (Opcional)"
+                if m.nombre == "Discapacidad":
+                    f_registro_modalidad.label = "Código CONADIS"
+                else:
+                    f_registro_modalidad.label = f"N° Registro/Carnet {m.nombre} (Opcional)"
                 f_registro_modalidad.visible = True
             else:
                 f_registro_modalidad.visible = False

@@ -45,11 +45,22 @@ def mostrar_ficha_socioeconomica_dialog(page: ft.Page, persona_id, nombre_estudi
         visible=bool(datos_previos.get("tiene_discapacidad", False))
     )
     
+    nivel_discapacidad_opciones = ["Ninguno", "Leve", "Moderada", "Severa"]
+    dd_nivel_discapacidad = ft.Dropdown(
+        label="Nivel de Discapacidad", expand=True,
+        options=[ft.dropdown.Option(n, n) for n in nivel_discapacidad_opciones],
+        value=datos_previos.get("nivel_de_discapacidad") or "Ninguno",
+        visible=bool(datos_previos.get("tiene_discapacidad", False))
+    )
+    
     def on_discapacidad_toggle(e):
         dd_discapacidad.visible = sw_discapacidad.value
+        dd_nivel_discapacidad.visible = sw_discapacidad.value
         if not sw_discapacidad.value:
             dd_discapacidad.value = "Ninguna"
+            dd_nivel_discapacidad.value = "Ninguno"
         dd_discapacidad.update()
+        dd_nivel_discapacidad.update()
         
     sw_discapacidad.on_change = on_discapacidad_toggle
 
@@ -139,6 +150,7 @@ def mostrar_ficha_socioeconomica_dialog(page: ft.Page, persona_id, nombre_estudi
             "sisfoh_condicion": dd_sisfoh.value,
             "tiene_discapacidad": sw_discapacidad.value,
             "tipo_discapacidad": dd_discapacidad.value,
+            "nivel_de_discapacidad": dd_nivel_discapacidad.value if sw_discapacidad.value else "Ninguno",
             "tipo_seguro": dd_seguro.value,
             "estructura_familiar": dd_familia.value,
             "dinamica_familiar": dd_dinamica.value,
@@ -193,7 +205,7 @@ def mostrar_ficha_socioeconomica_dialog(page: ft.Page, persona_id, nombre_estudi
                                 dd_sisfoh,
                                 dd_seguro,
                                 ft.Container(height=10),
-                                ft.Row([sw_discapacidad, dd_discapacidad], spacing=20, vertical_alignment="center")
+                                ft.Row([sw_discapacidad, dd_discapacidad, dd_nivel_discapacidad], spacing=20, vertical_alignment="center")
                             ], spacing=15)
                         ),
                         # Contenido Tab 2: Familia y Economía

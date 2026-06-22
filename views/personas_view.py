@@ -61,7 +61,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
     )
     buscador = ft.TextField(
         hint_text="Buscar por DNI, Nombre o Código...", prefix_icon=ft.Icons.SEARCH,
-        width=300, on_change=lambda e: cargar_datos(e.control.value)
+        width=250, on_change=lambda e: cargar_datos(e.control.value)
     )
 
     # ── Filtros de Mes, Año y Modalidad ────────────────────────
@@ -71,34 +71,206 @@ def build_personas_view(page: ft.Page, on_new_click=None):
              
     # Cargar modalidades para el filtro
     modalidades_cat = CatalogController.get_modalidades()
-    dd_modalidad_filtro = ft.Dropdown(
-        label="Modalidad", width=220, value="all",
-        options=[
-            ft.dropdown.Option(key="all", text="Todas las Modalidades")
-        ] + [ft.dropdown.Option(key=str(m.id), text=m.nombre) for m in modalidades_cat],
-        on_select=lambda _: cargar_datos(buscador.value)
-    )
     
-    dd_mes = ft.Dropdown(
-        label="Mes", width=155,
-        value=str(_hoy.month),
-        options=[
-            ft.dropdown.Option(key="all", text="Todo el Año")
-        ] + [ft.dropdown.Option(key=str(i+1), text=MESES[i]) for i in range(12)],
-        on_select=lambda _: cargar_datos(buscador.value)
-    )
-    dd_año = ft.Dropdown(
-        label="Año", width=110,
-        value=str(_hoy.year),
-        options=[ft.dropdown.Option(key="all", text="Todos")] + [ft.dropdown.Option(key=str(a), text=str(a)) for a in range(2026, _hoy.year + 5)],
-        on_select=lambda _: cargar_datos(buscador.value)
-    )
+    # Opciones y variables de estado de multi-selección
+    opciones_modalidad = [(str(m.id), m.nombre) for m in modalidades_cat]
+    opciones_mes = [(str(i+1), MESES[i]) for i in range(12)]
+    años_options = [str(a) for a in range(2026, _hoy.year + 5)]
+    opciones_año = [(a, a) for a in años_options]
     
+    selected_modalidades = set(str(m.id) for m in modalidades_cat) # Todas seleccionadas por defecto
+    selected_meses = {str(_hoy.month)} # Mes actual por defecto
+    selected_años = {str(_hoy.year)} # Año actual por defecto
+
+    # Funciones auxiliares para el formato de texto de los botones
+    def get_modalidades_text():
+        if not selected_modalidades:
+            return "Ninguna"
+        if len(selected_modalidades) == len(modalidades_cat):
+            return "Todas"
+        names = [m.nombre for m in modalidades_cat if str(m.id) in selected_modalidades]
+        text = ", ".join(names)
+        if len(text) > 14:
+            return f"{len(selected_modalidades)} Sel."
+        return text
+
+    def get_meses_text():
+        if not selected_meses:
+            return "Ninguno"
+        if len(selected_meses) == 12:
+            return "Todo el Año"
+        names = [MESES[int(m)-1] for m in sorted(list(selected_meses), key=int)]
+        text = ", ".join(names)
+        if len(text) > 12:
+            return f"{len(selected_meses)} Meses"
+        return text
+
+    def get_años_text():
+        if not selected_años:
+            return "Ninguno"
+        if len(selected_años) == len(años_options):
+            return "Todos"
+        text = ", ".join(sorted(list(selected_años)))
+        if len(text) > 10:
+            return f"{len(selected_años)} Años"
+        return text
+
+    # Auxiliar para construir botones estilizados de filtros estilo dropdown
+    def crear_filtro_boton(label, get_text_func, on_click_func, width):
+        text_control = ft.Text(get_text_func(), size=12, overflow=ft.TextOverflow.ELLIPSIS)
+        
+        def on_hover(e):
+            e.control.border = ft.border.all(1, ft.Colors.BLUE_400 if e.data == "true" else ft.Colors.WHITE_38)
+            e.control.update()
+            
+        btn = ft.Container(
+            content=ft.Row([
+                ft.Column([
+                    ft.Text(label, size=9, color=ft.Colors.WHITE_54, weight="bold"),
+                    text_control,
+                ], spacing=2, alignment=ft.MainAxisAlignment.CENTER, expand=True),
+                ft.Icon(ft.Icons.ARROW_DROP_DOWN, color=ft.Colors.WHITE_54, size=20)
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, vertical_alignment="center"),
+            width=width,
+            height=48,
+            border=ft.border.all(1, ft.Colors.WHITE_38),
+            border_radius=8,
+            padding=ft.padding.symmetric(horizontal=10, vertical=4),
+            on_click=on_click_func,
+            on_hover=on_hover,
+            ink=True,
+        )
+        
+        btn.data = {"update_text": lambda: setattr(text_control, "value", get_text_func())}
+        return btn
+
+    # Capa superior de overlay para el selector flotante y barrera transparente
+    active_dropdown = {"name": None}
+    overlay_layer = ft.Stack(expand=True, visible=False)
+
+    def close_all_dropdowns():
+        overlay_layer.controls.clear()
+        overlay_layer.visible = False
+        active_dropdown["name"] = None
+        try: overlay_layer.update()
+        except: pass
+
+    # Controlador de menú desplegable con checkmarks que no se cierra al hacer clic
+    def toggle_dropdown(name, btn, opciones, selected_set, left_pos, width_val, height_val):
+        if active_dropdown["name"] == name:
+            close_all_dropdowns()
+            return
+            
+        close_all_dropdowns()
+        active_dropdown["name"] = name
+        
+        # 1. Barrera transparente hit-testable
+        barrier = ft.Container(
+            expand=True,
+            bgcolor=ft.Colors.with_opacity(0.0, ft.Colors.BLACK),
+            on_click=lambda _: close_all_dropdowns()
+        )
+        
+        # 2. Contenedor de checkboxes
+        checkboxes_col = ft.Column(scroll=ft.ScrollMode.AUTO, tight=True, spacing=5)
+        
+        def rebuild_dropdown_content():
+            checkboxes_col.controls.clear()
+            all_selected = len(selected_set) == len(opciones)
+            
+            def toggle_all(e):
+                if all_selected:
+                    selected_set.clear()
+                else:
+                    selected_set.clear()
+                    selected_set.update(k for k, _ in opciones)
+                btn.data["update_text"]()
+                btn.update()
+                rebuild_dropdown_content()
+                card.update()
+                cargar_datos(buscador.value)
+                
+            chk_all = ft.Checkbox(
+                label="Seleccionar Todos",
+                value=all_selected,
+                on_change=toggle_all,
+                fill_color=ft.Colors.BLUE_400
+            )
+            checkboxes_col.controls.append(chk_all)
+            checkboxes_col.controls.append(ft.Divider(height=5, color=ft.Colors.WHITE_24))
+            
+            for key, label in opciones:
+                is_checked = key in selected_set
+                
+                def make_on_change(k):
+                    def on_change(e):
+                        if e.control.value:
+                            selected_set.add(k)
+                        else:
+                            selected_set.discard(k)
+                        btn.data["update_text"]()
+                        btn.update()
+                        rebuild_dropdown_content()
+                        card.update()
+                        cargar_datos(buscador.value)
+                    return on_change
+                    
+                chk = ft.Checkbox(
+                    label=label,
+                    value=is_checked,
+                    on_change=make_on_change(key)
+                )
+                checkboxes_col.controls.append(chk)
+                
+        rebuild_dropdown_content()
+        
+        card = ft.Card(
+            content=ft.Container(
+                content=checkboxes_col,
+                padding=10,
+                width=width_val,
+                height=height_val,
+            ),
+            left=left_pos,
+            top=48, # Nacimiento exacto en el borde inferior del botón
+            elevation=10,
+            shadow_color=ft.Colors.BLACK
+        )
+        
+        overlay_layer.controls.append(barrier)
+        overlay_layer.controls.append(card)
+        overlay_layer.visible = True
+        overlay_layer.update()
+
+    # Crear botones de filtro (anchos ajustados para que no desborden la fila horizontal)
+    btn_modalidad_filtro = crear_filtro_boton(
+        "Modalidad", 
+        get_modalidades_text, 
+        lambda _: toggle_dropdown("Modalidad", btn_modalidad_filtro, opciones_modalidad, selected_modalidades, 260, 150, 200), 
+        150
+    )
+    btn_mes_filtro = crear_filtro_boton(
+        "Mes", 
+        get_meses_text, 
+        lambda _: toggle_dropdown("Mes", btn_mes_filtro, opciones_mes, selected_meses, 420, 140, 220), 
+        120
+    )
+    btn_año_filtro = crear_filtro_boton(
+        "Año", 
+        get_años_text, 
+        lambda _: toggle_dropdown("Año", btn_año_filtro, opciones_año, selected_años, 550, 140, 180), 
+        90
+    )
+
     def limpiar_mes(e):
-        dd_mes.value = str(datetime.now().month)
-        dd_año.value = str(datetime.now().year)
-        dd_modalidad_filtro.value = "all"
+        selected_meses.clear()
+        selected_meses.add(str(datetime.now().month))
+        selected_años.clear()
+        selected_años.add(str(datetime.now().year))
+        selected_modalidades.clear()
+        selected_modalidades.update(str(m.id) for m in modalidades_cat)
         buscador.value = ""
+        close_all_dropdowns()
         cargar_datos()
         page.update()
 
@@ -151,7 +323,10 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                 m = db.query(CatModalidad).filter(CatModalidad.id == int(e_mod.value)).first()
                 db.close()
                 if m and m.nombre not in ["General", "CEPREVAL"]:
-                    e_reg_mod.label = f"N° Registro/Carnet {m.nombre} (Opcional)"
+                    if m.nombre == "Discapacidad":
+                        e_reg_mod.label = "Código CONADIS"
+                    else:
+                        e_reg_mod.label = f"N° Registro/Carnet {m.nombre} (Opcional)"
                     e_reg_mod.visible = True
                 else:
                     e_reg_mod.visible = False
@@ -292,13 +467,33 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                     p.get("caso_social","-")
                 ])
                 
-            periodo = "Anual" if dd_mes.value == "all" else MESES[int(dd_mes.value)-1]
-            mod_nombre = "Todas"
-            if dd_modalidad_filtro.value != "all" and dd_modalidad_filtro.value is not None:
-                mod_nombre = next((m.nombre for m in modalidades_cat if str(m.id) == dd_modalidad_filtro.value), "Modalidad")
+            # Nombre de período
+            if len(selected_meses) == 12 or not selected_meses:
+                periodo = "Todo_El_Año"
+            elif len(selected_meses) == 1:
+                periodo = MESES[int(list(selected_meses)[0])-1]
+            else:
+                names = [MESES[int(m)-1][:3] for m in sorted(list(selected_meses), key=int)]
+                periodo = "_".join(names)[:30]
+
+            # Nombre de modalidad
+            if len(selected_modalidades) == len(modalidades_cat) or not selected_modalidades:
+                mod_nombre = "Todas"
+            elif len(selected_modalidades) == 1:
+                mod_id = list(selected_modalidades)[0]
+                mod_nombre = next((m.nombre for m in modalidades_cat if str(m.id) == mod_id), "Modalidad")
+            else:
+                names = [m.nombre for m in modalidades_cat if str(m.id) in selected_modalidades]
+                mod_nombre = "_".join(names)[:30]
+
+            # Nombre de año
+            if len(selected_años) == 1:
+                año_nombre = list(selected_años)[0]
+            else:
+                año_nombre = "_".join(sorted(list(selected_años)))[:20]
                 
             estado_tag = "Activos" if estado["mostrar_activos"] else "Inactivos"
-            filename = f"Reporte_Estudiantes_{estado_tag}_{mod_nombre}_{periodo}_{dd_año.value}.xlsx"
+            filename = f"Reporte_Estudiantes_{estado_tag}_{mod_nombre}_{periodo}_{año_nombre}.xlsx"
             filepath = os.path.join(os.path.expanduser("~"), "Downloads", filename)
             try: wb.save(filepath); mostrar_exito(page, f"✔ en Descargas")
             except: wb.save(filename); mostrar_exito(page, f"✔ en CarpetaLocal")
@@ -323,16 +518,32 @@ def build_personas_view(page: ft.Page, on_new_click=None):
 
         p_all = PersonaController.get_all(solo_activos=False)
         
-        # 1. Filtrar por mes/año
-        if dd_mes.value and dd_mes.value != "all":
-            p_all = [p for p in p_all if p["fecha_atencion"].month == int(dd_mes.value)]
-        if dd_año.value and dd_año.value != "all":
-            p_all = [p for p in p_all if p["fecha_atencion"].year == int(dd_año.value)]
+        # 1. Filtrar por mes (selected_meses)
+        if selected_meses:
+            p_all = [p for p in p_all if str(p["fecha_atencion"].month) in selected_meses]
+        else:
+            p_all = []
+
+        # 2. Filtrar por año (selected_años)
+        if selected_años:
+            p_all = [p for p in p_all if str(p["fecha_atencion"].year) in selected_años]
+        else:
+            p_all = []
             
-        # 2. Filtrar por modalidad
-        filtro_mod = dd_modalidad_filtro.value
-        if filtro_mod and filtro_mod != "all":
-            p_all = [p for p in p_all if str(p.get("modalidad_id")) == filtro_mod]
+        # 3. Filtrar por modalidad (selected_modalidades)
+        general_ids = [str(m.id) for m in modalidades_cat if m.nombre == "General"]
+        general_id = general_ids[0] if general_ids else None
+        
+        def match_modalidad(p):
+            p_mod_id = p.get("modalidad_id")
+            if p_mod_id is None:
+                return general_id in selected_modalidades if general_id else True
+            return str(p_mod_id) in selected_modalidades
+            
+        if selected_modalidades:
+            p_all = [p for p in p_all if match_modalidad(p)]
+        else:
+            p_all = []
         
         # 3. Filtrar por pestaña Activo/Inactivo
         p_filtered  = [p for p in p_all if p["activo"] == estado["mostrar_activos"]]
@@ -465,6 +676,13 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                     ),
                 ], spacing=0)),
             ]))
+        # Actualizar textos de los botones de filtro
+        try:
+            for btn in [btn_modalidad_filtro, btn_mes_filtro, btn_año_filtro]:
+                btn.data["update_text"]()
+                btn.update()
+        except: pass
+
         spinner_p.visible = False
         page.update()
 
@@ -490,50 +708,68 @@ def build_personas_view(page: ft.Page, on_new_click=None):
     )
     zona_contenido_p = ft.Stack([area_tabla, spinner_p], expand=True)
 
-    return ft.Container(padding=ft.padding.only(left=25, right=25, top=20, bottom=10), expand=True, content=ft.Column([
+    pagination_bar = ft.Container(
+        padding=ft.padding.symmetric(horizontal=10, vertical=5),
+        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.BLUE_700),
+        border_radius=8,
+        content=ft.Row([
+            ft.Row([
+                ft.Text("Ver:", size=12, color=ft.Colors.WHITE_54),
+                dd_per_page
+            ], spacing=10),
+            ft.VerticalDivider(width=20),
+            txt_paginacion,
+            ft.Container(expand=True),
+            ft.Row([
+                btn_prev,
+                btn_next
+            ], spacing=5)
+        ], alignment=ft.MainAxisAlignment.CENTER)
+    )
+
+    tabs_row = ft.Row([
+        ft.Column([ft.TextButton(content=ft.Row([ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, size=16),
+                                                 ft.Text("Activos", ref=txt_activos)]),
+                                 on_click=lambda _: (close_all_dropdowns(), ctab(True))), ia], spacing=2),
+        ft.Column([ft.TextButton(content=ft.Row([ft.Icon(ft.Icons.BLOCK_OUTLINED, size=16),
+                                                 ft.Text("Inactivos", ref=txt_inactivos)]),
+                                 on_click=lambda _: (close_all_dropdowns(), ctab(False))), ii], spacing=2),
+    ], spacing=10)
+
+    filters_row = ft.Row([
+        buscador,
+        btn_modalidad_filtro,
+        btn_mes_filtro,
+        btn_año_filtro,
+        ft.IconButton(ft.Icons.RESTART_ALT_ROUNDED, tooltip="Limpiar Filtros", on_click=limpiar_mes),
+    ], spacing=10, wrap=False, vertical_alignment=ft.CrossAxisAlignment.CENTER)
+
+    filters_and_table_stack = ft.Stack([
+        ft.Column([
+            filters_row,
+            zona_contenido_p,
+            pagination_bar
+        ], expand=True, spacing=12),
+        overlay_layer
+    ], expand=True)
+
+    main_column = ft.Column([
         ft.Row([
             ft.Icon(ft.Icons.SCHOOL_ROUNDED, color=ft.Colors.GREEN_400, size=28),
             ft.Text("Gestión de Estudiantes", size=24, weight="bold"),
             ft.Container(expand=True),
             ft.ElevatedButton("Excel", icon=ft.Icons.FILE_DOWNLOAD, bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE, on_click=exportar_excel),
             ft.ElevatedButton("+ Nuevo", bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE,
-                               on_click=lambda _: on_new_click()),
+                               on_click=lambda _: (close_all_dropdowns(), on_new_click())),
         ], spacing=10),
         ft.Divider(color=ft.Colors.BLUE_900),
-        ft.Row([
-            ft.Column([ft.TextButton(content=ft.Row([ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, size=16),
-                                                     ft.Text("Activos", ref=txt_activos)]),
-                                     on_click=lambda _: ctab(True)), ia], spacing=2),
-            ft.Column([ft.TextButton(content=ft.Row([ft.Icon(ft.Icons.BLOCK_OUTLINED, size=16),
-                                                     ft.Text("Inactivos", ref=txt_inactivos)]),
-                                     on_click=lambda _: ctab(False)), ii], spacing=2),
-            ft.Container(width=10),
-            buscador,
-            dd_modalidad_filtro,
-            dd_mes, dd_año,
-            ft.IconButton(ft.Icons.RESTART_ALT_ROUNDED, tooltip="Limpiar Filtros", on_click=limpiar_mes),
-        ], spacing=10, wrap=True, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+        tabs_row,
+        ft.Divider(height=5, color="transparent"),
+        filters_and_table_stack
+    ], expand=True, spacing=12)
 
-        # El área de la tabla ahora es EXPANDIBLE
-        zona_contenido_p,
-        
-        # ── Barra de Paginación ──────────────────────────────────────────────
-        ft.Container(
-            padding=ft.padding.symmetric(horizontal=10, vertical=5),
-            bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.BLUE_700),
-            border_radius=8,
-            content=ft.Row([
-                ft.Row([
-                    ft.Text("Ver:", size=12, color=ft.Colors.WHITE_54),
-                    dd_per_page
-                ], spacing=10),
-                ft.VerticalDivider(width=20),
-                txt_paginacion,
-                ft.Container(expand=True),
-                ft.Row([
-                    btn_prev,
-                    btn_next
-                ], spacing=5)
-            ], alignment=ft.MainAxisAlignment.CENTER)
-        )
-    ], expand=True, spacing=12))
+    return ft.Container(
+        padding=ft.padding.only(left=25, right=25, top=20, bottom=10),
+        expand=True,
+        content=main_column
+    )

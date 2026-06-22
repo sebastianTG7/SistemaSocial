@@ -108,6 +108,7 @@ class FichaSocioeconomica(Base):
     sisfoh_condicion = Column(String(50))
     tiene_discapacidad = Column(Boolean, default=False)
     tipo_discapacidad = Column(String(50))
+    nivel_de_discapacidad = Column(String(50))
     tipo_seguro = Column(String(50))
     
     # Estructura y Dinámica Familiar
