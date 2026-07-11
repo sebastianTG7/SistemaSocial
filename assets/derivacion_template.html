@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Ficha de Derivación</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            color: #000;
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: auto;
+        }
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .header-table td {
+            vertical-align: middle;
+            text-align: center;
+            border: none;
+        }
+        .logo-left {
+            max-width: 150px;
+            height: auto;
+        }
+        .logo-right {
+            max-width: 80px;
+            height: auto;
+        }
+        .header-text h3 {
+            margin: 2px 0;
+            font-size: 13px;
+        }
+        .header-text h4 {
+            margin: 2px 0;
+            font-size: 11px;
+            font-weight: normal;
+        }
+        .title-container {
+            border: 1px solid #000;
+            padding: 10px;
+            position: relative;
+            height: 40px;
+        }
+        .main-title {
+            text-align: center;
+            font-size: 13px;
+            font-weight: bold;
+            text-decoration: underline;
+            margin-top: 10px;
+            display: block;
+        }
+        .date-section {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            text-align: right;
+            font-size: 11px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 0;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #000;
+            padding: 4px;
+            text-align: left;
+            vertical-align: top;
+        }
+        .section-title {
+            background-color: #A9D08E; /* Color verde claro */
+            text-align: center !important;
+            font-weight: bold;
+            font-size: 11px;
+            padding: 2px !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .label-cell {
+            background-color: #ffffff;
+            font-weight: bold;
+            font-size: 10px;
+            border: 1px solid #000;
+        }
+        
+        @media print {
+            .section-title {
+                background-color: #A9D08E !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <table class="header-table">
+            <tr>
+                <td style="width: 20%; padding: 5px;">
+                    <img src="{{ logo_unheval }}" class="logo-left" alt="UNHEVAL" onerror="this.style.display='none'">
+                </td>
+                <td style="width: 60%; padding: 5px;">
+                    <div class="header-text">
+                        <h3>UNIVERSIDAD NACIONAL HERMILIO VALDIZAN</h3>
+                        <h4>VICERRECTORADO ACADÉMICO</h4>
+                        <h4>DIRECCION DE BIENESTAR UNIVERSITARIO</h4>
+                        <h3 style="font-size: 14px; margin-top: 5px;">SERVICIO SOCIAL</h3>
+                    </div>
+                </td>
+                <td style="width: 20%; padding: 5px;">
+                    <img src="{{ logo_servicio }}" class="logo-right" alt="Servicio Social" onerror="this.style.display='none'">
+                </td>
+            </tr>
+        </table>
+
+        <!-- Título principal -->
+        <div class="title-container">
+            <span class="main-title">FICHA DE DERIVACIÓN DE CASO SOCIAL N° &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-2026</span>
+            <div class="date-section">
+                FECHA: <u>&nbsp;{{ fecha }}&nbsp;</u>
+                <div style="margin-top: 8px;">Lic. NERI ALVA VARA</div>
+            </div>
+        </div>
+
+        <!-- Información de los organismos -->
+        <table class="data-table">
+            <tr>
+                <td colspan="4" class="section-title">INFORMACIÓN DE LOS ORGANISMOS</td>
+            </tr>
+            <tr>
+                <td class="label-cell" style="width: 25%;">ÁREA QUE DERIVA:</td>
+                <td colspan="3" style="width: 75%;">{{ area_deriva }}</td>
+            </tr>
+            <tr>
+                <td class="label-cell">ÁREA A LA QUE SE DERIVA:</td>
+                <td colspan="3">{{ area_derivada }}</td>
+            </tr>
+
+            <!-- Datos Personales -->
+            <tr>
+                <td colspan="4" class="section-title">DATOS PERSONALES</td>
+            </tr>
+            <tr>
+                <td class="label-cell" style="width: 25%;">Apellido Paterno<br><br><span style="font-weight:normal;">{{ apellido_paterno }}</span></td>
+                <td class="label-cell" style="width: 25%;">Apellido Materno<br><br><span style="font-weight:normal;">{{ apellido_materno }}</span></td>
+                <td class="label-cell" style="width: 25%;">Nombres<br><br><span style="font-weight:normal;">{{ nombres }}</span></td>
+                <td class="label-cell" style="width: 25%;">Fecha de Nacimiento<br><br><span style="font-weight:normal;">{{ fecha_nacimiento }}</span></td>
+            </tr>
+            <tr>
+                <td class="label-cell">Código del estudiante<br><br><span style="font-weight:normal;">{{ codigo_estudiante }}</span></td>
+                <td class="label-cell">N° DNI<br><br><span style="font-weight:normal;">{{ dni }}</span></td>
+                <td class="label-cell" colspan="2">Lugar de Nacimiento<br><br><span style="font-weight:normal;">{{ lugar_nacimiento }}</span></td>
+            </tr>
+            <tr>
+                <td class="label-cell">N° de celular<br><br><span style="font-weight:normal;">{{ celular }}</span></td>
+                <td class="label-cell" colspan="2">Dirección<br><br><span style="font-weight:normal;">{{ direccion }}</span></td>
+                <td class="label-cell">Correo electrónico<br><br><span style="font-weight:normal;">{{ correo }}</span></td>
+            </tr>
+            <tr>
+                <td class="label-cell" colspan="2">Ocupación<br><br><span style="font-weight:normal;">{{ ocupacion }}</span></td>
+                <td class="label-cell" colspan="2">Facultad:<br><br><span style="font-weight:normal;">{{ facultad }}</span></td>
+            </tr>
+            <tr>
+                <td class="label-cell" colspan="2">Vive con<br><br><span style="font-weight:normal;">{{ vive_con }}</span></td>
+                <td class="label-cell" colspan="2">Teléfono de contacto de familiares<br><br><span style="font-weight:normal;">{{ telefono_familiares }}</span></td>
+            </tr>
+
+            <!-- Información de la derivación -->
+            <tr>
+                <td colspan="4" class="section-title">INFORMACIÓN DE LA DERIVACIÓN</td>
+            </tr>
+            <tr>
+                <td class="label-cell">Motivo de la<br>consulta</td>
+                <td colspan="2"><span style="font-weight:normal;">{{ motivo_consulta }}</span></td>
+                <td class="label-cell" style="text-align: center; vertical-align: middle;">
+                    Tiene derivaciones<br>previas? 
+                    <br><br>
+                    SI ( <b>{{ 'X' if tiene_derivaciones_previas else '&nbsp;&nbsp;' }}</b> ) &nbsp;&nbsp;&nbsp;&nbsp; NO ( <b>{{ '&nbsp;&nbsp;' if tiene_derivaciones_previas else 'X' }}</b> )
+                </td>
+            </tr>
+            <tr>
+                <td class="label-cell">Condición:</td>
+                <td colspan="2" style="text-align: center; vertical-align: middle; font-size: 10px;">
+                    Leve ( <b>{{ 'X' if condicion == 'Leve' else '&nbsp;&nbsp;' }}</b> ) &nbsp;&nbsp; Moderado ( <b>{{ 'X' if condicion == 'Moderado' else '&nbsp;&nbsp;' }}</b> ) &nbsp;&nbsp; Grave ( <b>{{ 'X' if condicion == 'Grave' else '&nbsp;&nbsp;' }}</b> )
+                </td>
+                <td rowspan="2" style="vertical-align: top; font-size: 10px;">
+                    <b>Derivaciones:</b><br><br>
+                    {{ detalle_derivaciones_previas }}
+                </td>
+            </tr>
+            <tr>
+                <td class="label-cell">Impacto en el<br>funcionamiento<br>diario</td>
+                <td colspan="2" style="text-align: center; vertical-align: middle; font-size: 10px;">
+                    Académico ( <b>{{ 'X' if impacto_academico else '&nbsp;&nbsp;' }}</b> ) &nbsp;&nbsp; Social ( <b>{{ 'X' if impacto_social else '&nbsp;&nbsp;' }}</b> ) <br><br> Familiar ( <b>{{ 'X' if impacto_familiar else '&nbsp;&nbsp;' }}</b> ) &nbsp;&nbsp; Personal ( <b>{{ 'X' if impacto_personal else '&nbsp;&nbsp;' }}</b> )
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4" style="height: 150px; font-size: 10px;">
+                    <b>Diagnóstico del caso:</b><br><br>
+                    {{ diagnostico }}
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4" style="height: 150px; font-size: 10px;">
+                    <b>Observaciones:</b><br><br>
+                    {{ observaciones }}
+                </td>
+            </tr>
+        </table>
+
+        <!-- Firmas -->
+        <table class="data-table" style="margin-top: 0;">
+            <tr>
+                <td style="width: 50%; height: 100px; border-top: none; border-right: none; vertical-align: bottom; text-align: center;">
+                    <div style="border-top: 1px solid #000; width: 60%; margin: 0 auto; padding-top: 5px; font-size: 10px; font-weight: bold;">FIRMA DEL ENTREVISTADO</div>
+                </td>
+                <td style="width: 50%; height: 100px; border-top: none; border-left: none; vertical-align: bottom; text-align: center;">
+                    <div style="border-top: 1px solid #000; width: 60%; margin: 0 auto; padding-top: 5px; font-size: 10px; font-weight: bold;">ASISTENTE(A) SOCIAL</div>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <script>
+        window.onload = function() {
+            // Elimina márgenes extra al imprimir
+            document.body.style.margin = "0";
+            // Llama al diálogo de impresión después de que las imágenes carguen
+            setTimeout(function() {
+                window.print();
+            }, 500);
+        };
+    </script>
+</body>
+</html>

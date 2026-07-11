@@ -34,6 +34,11 @@ class Sidebar(ft.NavigationRail):
                 label="Evaluaciones",
             ),
             ft.NavigationRailDestination(
+                icon=ft.Icons.SHARE_OUTLINED,
+                selected_icon=ft.Icons.SHARE_ROUNDED,
+                label="Derivaciones",
+            ),
+            ft.NavigationRailDestination(
                 icon=ft.Icons.SETTINGS_OUTLINED,
                 selected_icon=ft.Icons.SETTINGS_ROUNDED,
                 label="Config.",

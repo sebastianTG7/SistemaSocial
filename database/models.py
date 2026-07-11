@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Enum, Text, Float
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Date, Enum, Text, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .db_config import Base
@@ -94,6 +94,7 @@ class Persona(Base):
     caso_social = relationship("CatCasoSocial", back_populates="personas")
     modalidad = relationship("CatModalidad", back_populates="personas")
     ficha_socioeconomica = relationship("FichaSocioeconomica", uselist=False, back_populates="persona", cascade="all, delete-orphan")
+    ficha_derivacion = relationship("FichaDerivacion", uselist=False, back_populates="persona", cascade="all, delete-orphan")
 
 
 class FichaSocioeconomica(Base):
@@ -133,4 +134,39 @@ class FichaSocioeconomica(Base):
     
     # Relaciones
     persona = relationship("Persona", back_populates="ficha_socioeconomica")
+
+class FichaDerivacion(Base):
+    __tablename__ = "fichas_derivacion"
+    id = Column(Integer, primary_key=True, index=True)
+    persona_id = Column(Integer, ForeignKey("personas.id"), nullable=False, unique=True)
+    
+    # Datos Personales Complementarios
+    fecha_nacimiento = Column(Date)
+    lugar_nacimiento = Column(String(100))
+    ocupacion = Column(String(100))
+    vive_con = Column(String(100))
+    telefono_familiares = Column(String(50))
+    
+    # Información de los Organismos
+    area_deriva = Column(String(100))
+    area_derivada = Column(String(100))
+    
+    # Información de la Derivación
+    fecha_derivacion = Column(DateTime, default=datetime.now)
+    motivo_consulta = Column(Text)
+    tiene_derivaciones_previas = Column(Boolean, default=False)
+    detalle_derivaciones_previas = Column(Text)
+    condicion = Column(String(50)) # Leve, Moderado, Grave
+    
+    # Impacto en el funcionamiento diario
+    impacto_academico = Column(Boolean, default=False)
+    impacto_social = Column(Boolean, default=False)
+    impacto_familiar = Column(Boolean, default=False)
+    impacto_personal = Column(Boolean, default=False)
+    
+    diagnostico = Column(Text)
+    observaciones = Column(Text)
+    
+    # Relaciones
+    persona = relationship("Persona", back_populates="ficha_derivacion")
 

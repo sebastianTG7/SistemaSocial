@@ -93,6 +93,7 @@ def init_db():
             CatCasoSocial(nombre="Orientación"),
             CatCasoSocial(nombre="Seguimiento"),
             CatCasoSocial(nombre="Monitoreo"),
+            CatCasoSocial(nombre="Derivación"),
         ]
         db.add_all(casos)
         print("  ✔ Catálogo Casos Sociales inicializado.")

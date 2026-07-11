@@ -317,3 +317,91 @@ class PersonaController:
         finally:
             db.close()
 
+    @staticmethod
+    def get_ficha_derivacion(persona_id):
+        from database.db_config import SessionLocal
+        from database.models import FichaDerivacion
+        db = SessionLocal()
+        try:
+            ficha = db.query(FichaDerivacion).filter(FichaDerivacion.persona_id == persona_id).first()
+            if ficha:
+                return {
+                    "id": ficha.id,
+                    "persona_id": ficha.persona_id,
+                    "fecha_nacimiento": ficha.fecha_nacimiento.strftime("%d/%m/%Y") if ficha.fecha_nacimiento else "",
+                    "lugar_nacimiento": ficha.lugar_nacimiento,
+                    "ocupacion": ficha.ocupacion,
+                    "vive_con": ficha.vive_con,
+                    "telefono_familiares": ficha.telefono_familiares,
+                    "area_deriva": ficha.area_deriva,
+                    "area_derivada": ficha.area_derivada,
+                    "fecha_derivacion": ficha.fecha_derivacion,
+                    "motivo_consulta": ficha.motivo_consulta,
+                    "tiene_derivaciones_previas": ficha.tiene_derivaciones_previas,
+                    "detalle_derivaciones_previas": ficha.detalle_derivaciones_previas,
+                    "condicion": ficha.condicion,
+                    "impacto_academico": ficha.impacto_academico,
+                    "impacto_social": ficha.impacto_social,
+                    "impacto_familiar": ficha.impacto_familiar,
+                    "impacto_personal": ficha.impacto_personal,
+                    "diagnostico": ficha.diagnostico,
+                    "observaciones": ficha.observaciones
+                }
+            return None
+        finally:
+            db.close()
+
+    @staticmethod
+    def guardar_ficha_derivacion(persona_id, datos):
+        from database.db_config import SessionLocal
+        from database.models import FichaDerivacion
+        from datetime import datetime
+        db = SessionLocal()
+        try:
+            ficha = db.query(FichaDerivacion).filter(FichaDerivacion.persona_id == persona_id).first()
+            if not ficha:
+                ficha = FichaDerivacion(persona_id=persona_id)
+                db.add(ficha)
+            
+            if datos.get("fecha_nacimiento"):
+                try:
+                    ficha.fecha_nacimiento = datetime.strptime(datos["fecha_nacimiento"], "%d/%m/%Y").date()
+                except:
+                    pass
+            
+            if datos.get("fecha_derivacion"):
+                try:
+                    ficha.fecha_derivacion = datetime.strptime(datos["fecha_derivacion"], "%d/%m/%Y")
+                except:
+                    pass
+                    
+            ficha.lugar_nacimiento = datos.get("lugar_nacimiento")
+            ficha.ocupacion = datos.get("ocupacion")
+            ficha.vive_con = datos.get("vive_con")
+            ficha.telefono_familiares = datos.get("telefono_familiares")
+            
+            ficha.area_deriva = datos.get("area_deriva")
+            ficha.area_derivada = datos.get("area_derivada")
+            
+            ficha.motivo_consulta = datos.get("motivo_consulta")
+            ficha.tiene_derivaciones_previas = bool(datos.get("tiene_derivaciones_previas"))
+            ficha.detalle_derivaciones_previas = datos.get("detalle_derivaciones_previas")
+            ficha.condicion = datos.get("condicion")
+            
+            ficha.impacto_academico = bool(datos.get("impacto_academico"))
+            ficha.impacto_social = bool(datos.get("impacto_social"))
+            ficha.impacto_familiar = bool(datos.get("impacto_familiar"))
+            ficha.impacto_personal = bool(datos.get("impacto_personal"))
+            
+            ficha.diagnostico = datos.get("diagnostico")
+            ficha.observaciones = datos.get("observaciones")
+            
+            db.commit()
+            return True, ficha.id
+        except Exception as ex:
+            db.rollback()
+            return False, str(ex)
+        finally:
+            db.close()
+
+

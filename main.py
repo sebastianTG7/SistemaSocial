@@ -7,6 +7,7 @@ from views.components.sidebar import Sidebar
 from views.registro_view import build_registro_view
 from views.personas_view import build_personas_view
 from views.evaluaciones_view import build_evaluaciones_view
+from views.derivaciones_view import build_derivaciones_view
 from views.config_view import build_config_view
 
 from core.backup_manager import BackupManager
@@ -38,6 +39,8 @@ def main(page: ft.Page):
         elif index == 3:
             main_container.content = build_evaluaciones_view(page)
         elif index == 4:
+            main_container.content = build_derivaciones_view(page)
+        elif index == 5:
             main_container.content = build_config_view(page)
         page.update()
 
