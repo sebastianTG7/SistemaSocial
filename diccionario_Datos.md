@@ -66,32 +66,43 @@ Credenciales de acceso para el personal (operadores/administradores).
 | `rol` | VARCHAR(20) | DEFAULT 'operador' | Rol del usuario en el sistema. |
 | `activo` | BOOLEAN | DEFAULT 1 | Indica si la cuenta está activa. |
 
-#### Tabla: `personas` (Bitácora de Atenciones)
-Registro central de atenciones.
+#### Tabla: `personas` (Catálogo de Beneficiarios)
+Registro central de datos fijos de los individuos atendidos.
+
+| Campo | Tipo SQL | Restricción | Descripción |
+| :--- | :--- | :--- | :--- |
+| `id` | INT | PK, INDEX | Identificador único de la persona. |
+| `dni` | VARCHAR(20) | NOT NULL, UNIQUE, INDEX | DNI de la persona. |
+| `nombres` | VARCHAR(100) | NOT NULL | Nombres de la persona. |
+| `apellidos` | VARCHAR(100) | NOT NULL | Apellidos de la persona. |
+| `fecha_nacimiento`| DATE | - | Fecha de nacimiento de la persona. |
+| `edad` | INT | - | Edad de la persona. |
+| `sexo` | VARCHAR(1) | - | Sexo (F/M). |
+| `codigo_estudiante`| VARCHAR(20) | - | Código universitario (si aplica). |
+| `año_estudio` | VARCHAR(10) | - | Año o ciclo de estudio actual. |
+| `tipo_usuario_id`| INT | FK | Referencia a `cat_tipos_usuario.id`. |
+| `facultad_id` | INT | FK | Referencia a `cat_facultades.id`. |
+| `escuela_id` | INT | FK | Referencia a `cat_escuelas.id`. |
+| `celular` | VARCHAR(20) | - | Número de celular. |
+| `correo` | VARCHAR(100) | - | Correo electrónico. |
+| `direccion` | VARCHAR(200) | - | Dirección domiciliaria. |
+| `activo` | BOOLEAN | DEFAULT 1 | Estado lógico del registro. |
+| `fecha_registro` | DATETIME | DEFAULT | Fecha en la que se guardó en el sistema. |
+
+#### Tabla: `atenciones` (Historial de Visitas)
+Registro de cada evento de atención a una persona (Relación 1:N con personas).
 
 | Campo | Tipo SQL | Restricción | Descripción |
 | :--- | :--- | :--- | :--- |
 | `id` | INT | PK, INDEX | Identificador único de la atención. |
-| `dni` | VARCHAR(20) | NOT NULL, INDEX | DNI de la persona atendida. |
-| `nombres` | VARCHAR(100) | NOT NULL | Nombres de la persona. |
-| `apellidos` | VARCHAR(100) | NOT NULL | Apellidos de la persona. |
-| `edad` | INT | - | Edad en el momento de la atención. |
-| `sexo` | VARCHAR(1) | - | Sexo (F/M). |
+| `persona_id` | INT | FK, NOT NULL | Referencia a `personas.id` (NO UNIQUE). |
 | `fecha_atencion` | DATETIME | NOT NULL, DEFAULT | Fecha y hora de la atención. |
-| `codigo_estudiante`| VARCHAR(20) | - | Código universitario (si aplica). |
-| `año_estudio` | VARCHAR(10) | - | Año o ciclo de estudio. |
-| `tipo_usuario_id`| INT | FK | Referencia a `cat_tipos_usuario.id`. |
-| `facultad_id` | INT | FK | Referencia a `cat_facultades.id`. |
-| `escuela_id` | INT | FK | Referencia a `cat_escuelas.id`. |
 | `caso_social_id` | INT | FK | Referencia a `cat_casos_sociales.id`. |
 | `modalidad_id` | INT | FK | Referencia a `cat_modalidades.id`. |
 | `registro_modalidad`| VARCHAR(100)| - | Detalle extra sobre la modalidad. |
-| `celular` | VARCHAR(20) | - | Número de celular. |
-| `correo` | VARCHAR(100) | - | Correo electrónico. |
-| `direccion` | VARCHAR(200) | - | Dirección domiciliaria. |
-| `observaciones` | TEXT | - | Anotaciones generales. |
+| `observaciones` | TEXT | - | Anotaciones generales sobre la visita. |
 | `activo` | BOOLEAN | DEFAULT 1 | Estado lógico del registro. |
-| `fecha_registro` | DATETIME | DEFAULT | Fecha en la que se guardó en el sistema. |
+| `fecha_registro` | DATETIME | DEFAULT | Fecha de registro en el sistema. |
 
 ---
 
@@ -131,8 +142,7 @@ Detalles para derivación a otras áreas y evaluación de impacto.
 | Campo | Tipo SQL | Restricción | Descripción |
 | :--- | :--- | :--- | :--- |
 | `id` | INT | PK, INDEX | Identificador único de la ficha. |
-| `persona_id` | INT | FK, NOT NULL, UNIQUE| Referencia a `personas.id`. |
-| `fecha_nacimiento`| DATE | - | Fecha de nacimiento. |
+| `atencion_id` | INT | FK, NOT NULL, UNIQUE| Referencia a `atenciones.id`. |
 | `lugar_nacimiento`| VARCHAR(100)| - | Lugar de nacimiento. |
 | `ocupacion` | VARCHAR(100)| - | Ocupación laboral o académica extra. |
 | `vive_con` | VARCHAR(100)| - | Personas con las que convive. |

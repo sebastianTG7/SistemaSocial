@@ -1,15 +1,17 @@
 from database.db_config import SessionLocal
 from sqlalchemy import extract, func, or_
-from database.models import Persona, CatTipoUsuario, CatCasoSocial, CatEscuela, CatFacultad, CatModalidad, FichaSocioeconomica
+from database.models import Persona, Atencion, CatTipoUsuario, CatCasoSocial, CatEscuela, CatFacultad, CatModalidad, FichaSocioeconomica
 
 class PersonaController:
     @staticmethod
     def buscar_por_dni(dni):
-        """Busca la última atención de una persona por DNI para autocompletar."""
+        """Busca la persona y su última atención por DNI para autocompletar."""
         db = SessionLocal()
         try:
-            p = db.query(Persona).filter(Persona.dni == dni).order_by(Persona.id.desc()).first()
+            p = db.query(Persona).filter(Persona.dni == dni).first()
             if p:
+                # Buscar la ultima atencion
+                a = db.query(Atencion).filter(Atencion.persona_id == p.id).order_by(Atencion.id.desc()).first()
                 return {
                     "nombres": p.nombres, "apellidos": p.apellidos,
                     "edad": p.edad, "sexo": p.sexo,
@@ -20,9 +22,9 @@ class PersonaController:
                     "escuela_id": p.escuela_id,
                     "celular": p.celular, "correo": p.correo,
                     "direccion": p.direccion,
-                    "fecha_atencion": p.fecha_atencion,
-                    "modalidad_id": p.modalidad_id,
-                    "registro_modalidad": p.registro_modalidad,
+                    "fecha_atencion": a.fecha_atencion if a else None,
+                    "modalidad_id": a.modalidad_id if a else None,
+                    "registro_modalidad": a.registro_modalidad if a else None,
                 }
             return None
         finally:
@@ -30,34 +32,46 @@ class PersonaController:
 
     @staticmethod
     def registrar(datos):
-        """Registra una nueva atención."""
+        """Registra una nueva atención. Crea o actualiza la persona si es necesario."""
         from datetime import datetime
         db = SessionLocal()
         try:
             fecha = datetime.strptime(datos["fecha_atencion"], "%d/%m/%Y")
-            persona = Persona(
-                dni=datos["dni"],
+            
+            p = db.query(Persona).filter(Persona.dni == datos["dni"]).first()
+            if not p:
+                p = Persona(dni=datos["dni"])
+                db.add(p)
+                db.flush() # Para obtener el ID
+
+            # Actualizamos datos estáticos
+            p.nombres = datos["nombres"].upper()
+            p.apellidos = datos["apellidos"].upper()
+            p.edad = int(datos["edad"]) if datos.get("edad") and str(datos["edad"]).isdigit() else p.edad
+            p.sexo = datos.get("sexo") or p.sexo
+            p.codigo_estudiante = datos.get("codigo_estudiante") or p.codigo_estudiante
+            p.año_estudio = datos.get("año_estudio") or p.año_estudio
+            p.tipo_usuario_id = datos.get("tipo_usuario_id") or p.tipo_usuario_id
+            p.facultad_id = datos.get("facultad_id") or p.facultad_id
+            p.escuela_id = datos.get("escuela_id") or p.escuela_id
+            p.celular = datos.get("celular") or p.celular
+            p.correo = datos.get("correo") or p.correo
+            p.direccion = datos.get("direccion") or p.direccion
+            
+            db.flush()
+
+            # Creamos la atención
+            a = Atencion(
+                persona_id=p.id,
                 fecha_atencion=fecha,
-                nombres=datos["nombres"].upper(),
-                apellidos=datos["apellidos"].upper(),
-                edad=int(datos["edad"]) if datos.get("edad") and str(datos["edad"]).isdigit() else None,
-                sexo=datos.get("sexo"),
-                codigo_estudiante=datos.get("codigo_estudiante"),
-                año_estudio=datos.get("año_estudio"),
-                tipo_usuario_id=datos.get("tipo_usuario_id"),
-                facultad_id=datos.get("facultad_id"),
-                escuela_id=datos.get("escuela_id"),
                 caso_social_id=datos.get("caso_social_id"),
                 modalidad_id=datos.get("modalidad_id"),
                 registro_modalidad=datos.get("registro_modalidad"),
-                celular=datos.get("celular"),
-                correo=datos.get("correo"),
-                direccion=datos.get("direccion"),
                 observaciones=datos.get("observaciones"),
             )
-            db.add(persona)
+            db.add(a)
             db.commit()
-            return True, persona.id
+            return True, a.id  # Devolvemos el ID de la atencion!
         except Exception as ex:
             db.rollback()
             return False, str(ex)
@@ -69,26 +83,27 @@ class PersonaController:
         db = SessionLocal()
         try:
             query = db.query(
-                Persona.id, Persona.dni, Persona.nombres, Persona.apellidos,
+                Atencion.id, Persona.dni, Persona.nombres, Persona.apellidos,
                 Persona.sexo, Persona.edad, Persona.celular, Persona.correo,
-                Persona.direccion, Persona.fecha_atencion, Persona.activo,
-                Persona.codigo_estudiante, Persona.año_estudio, Persona.observaciones,
-                Persona.modalidad_id, Persona.registro_modalidad,
+                Persona.direccion, Atencion.fecha_atencion, Atencion.activo,
+                Persona.codigo_estudiante, Persona.año_estudio, Atencion.observaciones,
+                Atencion.modalidad_id, Atencion.registro_modalidad,
                 CatTipoUsuario.nombre.label("tipo_usuario"),
                 CatCasoSocial.nombre.label("caso_social"),
                 CatFacultad.nombre.label("facultad"),
                 CatEscuela.nombre.label("escuela"),
                 CatModalidad.nombre.label("modalidad"),
                 FichaSocioeconomica.id.isnot(None).label("tiene_ficha")
-            ).outerjoin(CatTipoUsuario, Persona.tipo_usuario_id == CatTipoUsuario.id)\
-             .outerjoin(CatCasoSocial, Persona.caso_social_id == CatCasoSocial.id)\
+            ).select_from(Atencion).join(Persona, Atencion.persona_id == Persona.id)\
+             .outerjoin(CatTipoUsuario, Persona.tipo_usuario_id == CatTipoUsuario.id)\
+             .outerjoin(CatCasoSocial, Atencion.caso_social_id == CatCasoSocial.id)\
              .outerjoin(CatFacultad, Persona.facultad_id == CatFacultad.id)\
              .outerjoin(CatEscuela, Persona.escuela_id == CatEscuela.id)\
-             .outerjoin(CatModalidad, Persona.modalidad_id == CatModalidad.id)\
+             .outerjoin(CatModalidad, Atencion.modalidad_id == CatModalidad.id)\
              .outerjoin(FichaSocioeconomica, Persona.id == FichaSocioeconomica.persona_id)
             
             if solo_activos:
-                query = query.filter(Persona.activo == True)
+                query = query.filter(Atencion.activo == True)
             
             results = query.all()
             return [dict(r._asdict()) for r in results]
@@ -99,10 +114,10 @@ class PersonaController:
     def get_trend(anio):
         db = SessionLocal()
         try:
-            trend = db.query(extract('month', Persona.fecha_atencion), func.count(Persona.id))\
-                .filter(extract('year', Persona.fecha_atencion) == int(anio))\
-                .filter(Persona.activo == True)\
-                .group_by(extract('month', Persona.fecha_atencion)).all()
+            trend = db.query(extract('month', Atencion.fecha_atencion), func.count(Atencion.id))\
+                .filter(extract('year', Atencion.fecha_atencion) == int(anio))\
+                .filter(Atencion.activo == True)\
+                .group_by(extract('month', Atencion.fecha_atencion)).all()
             trend_data = {m: 0 for m in range(1, 13)}
             for m, c in trend: trend_data[int(m)] = c
             return trend_data
@@ -113,41 +128,47 @@ class PersonaController:
     def get_analytics(mes=None, anio=None):
         db = SessionLocal()
         try:
-            # 1. Total
-            q_total = db.query(func.count(Persona.id)).filter(Persona.activo == True)
-            if mes: q_total = q_total.filter(extract('month', Persona.fecha_atencion) == int(mes))
-            if anio: q_total = q_total.filter(extract('year', Persona.fecha_atencion) == int(anio))
+            # 1. Total (Atenciones)
+            q_total = db.query(func.count(Atencion.id)).filter(Atencion.activo == True)
+            if mes: q_total = q_total.filter(extract('month', Atencion.fecha_atencion) == int(mes))
+            if anio: q_total = q_total.filter(extract('year', Atencion.fecha_atencion) == int(anio))
             total = q_total.scalar() or 0
 
             # 2. Tipos
-            q_tipos = db.query(CatTipoUsuario.nombre, func.count(Persona.id))\
-                .outerjoin(Persona, (Persona.tipo_usuario_id == CatTipoUsuario.id) & (Persona.activo == True))
-            if mes: q_tipos = q_tipos.filter(extract('month', Persona.fecha_atencion) == int(mes))
-            if anio: q_tipos = q_tipos.filter(extract('year', Persona.fecha_atencion) == int(anio))
+            q_tipos = db.query(CatTipoUsuario.nombre, func.count(Atencion.id))\
+                .select_from(Atencion).join(Persona, Atencion.persona_id == Persona.id)\
+                .outerjoin(CatTipoUsuario, Persona.tipo_usuario_id == CatTipoUsuario.id)\
+                .filter(Atencion.activo == True)
+            if mes: q_tipos = q_tipos.filter(extract('month', Atencion.fecha_atencion) == int(mes))
+            if anio: q_tipos = q_tipos.filter(extract('year', Atencion.fecha_atencion) == int(anio))
             tipos = q_tipos.group_by(CatTipoUsuario.nombre).all()
 
             # 3. Casos
-            q_casos = db.query(CatCasoSocial.nombre, func.count(Persona.id))\
-                .outerjoin(Persona, (Persona.caso_social_id == CatCasoSocial.id) & (Persona.activo == True))
-            if mes: q_casos = q_casos.filter(extract('month', Persona.fecha_atencion) == int(mes))
-            if anio: q_casos = q_casos.filter(extract('year', Persona.fecha_atencion) == int(anio))
+            q_casos = db.query(CatCasoSocial.nombre, func.count(Atencion.id))\
+                .select_from(Atencion)\
+                .outerjoin(CatCasoSocial, Atencion.caso_social_id == CatCasoSocial.id)\
+                .filter(Atencion.activo == True)
+            if mes: q_casos = q_casos.filter(extract('month', Atencion.fecha_atencion) == int(mes))
+            if anio: q_casos = q_casos.filter(extract('year', Atencion.fecha_atencion) == int(anio))
             casos = q_casos.group_by(CatCasoSocial.nombre).all()
 
-            # 4. Escuelas (top por escuela, no por facultad)
-            q_escu = db.query(CatEscuela.nombre, func.count(Persona.id))\
-                .join(Persona, (Persona.escuela_id == CatEscuela.id) & (Persona.activo == True))
-            if mes: q_escu = q_escu.filter(extract('month', Persona.fecha_atencion) == int(mes))
-            if anio: q_escu = q_escu.filter(extract('year', Persona.fecha_atencion) == int(anio))
+            # 4. Escuelas
+            q_escu = db.query(CatEscuela.nombre, func.count(Atencion.id))\
+                .select_from(Atencion).join(Persona, Atencion.persona_id == Persona.id)\
+                .join(CatEscuela, Persona.escuela_id == CatEscuela.id)\
+                .filter(Atencion.activo == True)
+            if mes: q_escu = q_escu.filter(extract('month', Atencion.fecha_atencion) == int(mes))
+            if anio: q_escu = q_escu.filter(extract('year', Atencion.fecha_atencion) == int(anio))
             q_escu = q_escu.group_by(CatEscuela.nombre)
-            # Top 5 para card principal
-            facultades_top5 = q_escu.order_by(func.count(Persona.id).desc()).limit(5).all()
-            # Todas para el acordeón
-            facultades_todas = q_escu.order_by(func.count(Persona.id).desc()).all()
+            facultades_top5 = q_escu.order_by(func.count(Atencion.id).desc()).limit(5).all()
+            facultades_todas = q_escu.order_by(func.count(Atencion.id).desc()).all()
 
             # 5. Sexo
-            q_sexo = db.query(Persona.sexo, func.count(Persona.id)).filter(Persona.activo == True)
-            if mes: q_sexo = q_sexo.filter(extract('month', Persona.fecha_atencion) == int(mes))
-            if anio: q_sexo = q_sexo.filter(extract('year', Persona.fecha_atencion) == int(anio))
+            q_sexo = db.query(Persona.sexo, func.count(Atencion.id))\
+                .select_from(Atencion).join(Persona, Atencion.persona_id == Persona.id)\
+                .filter(Atencion.activo == True)
+            if mes: q_sexo = q_sexo.filter(extract('month', Atencion.fecha_atencion) == int(mes))
+            if anio: q_sexo = q_sexo.filter(extract('year', Atencion.fecha_atencion) == int(anio))
             sexo = q_sexo.group_by(Persona.sexo).all()
 
             return {
@@ -162,30 +183,34 @@ class PersonaController:
             db.close()
             
     @staticmethod
-    def desactivar(p_id):
-        db = SessionLocal(); p = db.query(Persona).filter(Persona.id == p_id).first()
-        if p: p.activo = False; db.commit()
+    def desactivar(a_id):
+        db = SessionLocal(); a = db.query(Atencion).filter(Atencion.id == a_id).first()
+        if a: a.activo = False; db.commit()
         db.close()
 
     @staticmethod
-    def activar(p_id):
-        db = SessionLocal(); p = db.query(Persona).filter(Persona.id == p_id).first()
-        if p: p.activo = True; db.commit()
+    def activar(a_id):
+        db = SessionLocal(); a = db.query(Atencion).filter(Atencion.id == a_id).first()
+        if a: a.activo = True; db.commit()
         db.close()
 
     @staticmethod
-    def eliminar_permanente(p_id):
-        db = SessionLocal(); p = db.query(Persona).filter(Persona.id == p_id).first()
-        if p: db.delete(p); db.commit()
+    def eliminar_permanente(a_id):
+        db = SessionLocal(); a = db.query(Atencion).filter(Atencion.id == a_id).first()
+        if a: db.delete(a); db.commit()
         db.close()
 
     @staticmethod
-    def get_ficha_socioeconomica(persona_id):
+    def get_ficha_socioeconomica(atencion_id):
         from database.db_config import SessionLocal
-        from database.models import FichaSocioeconomica
+        from database.models import FichaSocioeconomica, Atencion
         db = SessionLocal()
         try:
-            ficha = db.query(FichaSocioeconomica).filter(FichaSocioeconomica.persona_id == persona_id).first()
+            # La ficha está ligada a Persona, así que buscamos la persona vía Atencion
+            atencion = db.query(Atencion).filter(Atencion.id == atencion_id).first()
+            if not atencion: return None
+            
+            ficha = db.query(FichaSocioeconomica).filter(FichaSocioeconomica.persona_id == atencion.persona_id).first()
             if ficha:
                 return {
                     "id": ficha.id,
@@ -216,14 +241,17 @@ class PersonaController:
             db.close()
 
     @staticmethod
-    def guardar_ficha_socioeconomica(persona_id, datos):
+    def guardar_ficha_socioeconomica(atencion_id, datos):
         from database.db_config import SessionLocal
-        from database.models import FichaSocioeconomica
+        from database.models import FichaSocioeconomica, Atencion
         db = SessionLocal()
         try:
-            ficha = db.query(FichaSocioeconomica).filter(FichaSocioeconomica.persona_id == persona_id).first()
+            atencion = db.query(Atencion).filter(Atencion.id == atencion_id).first()
+            if not atencion: return False, "Atención no encontrada"
+            
+            ficha = db.query(FichaSocioeconomica).filter(FichaSocioeconomica.persona_id == atencion.persona_id).first()
             if not ficha:
-                ficha = FichaSocioeconomica(persona_id=persona_id)
+                ficha = FichaSocioeconomica(persona_id=atencion.persona_id)
                 db.add(ficha)
             
             ficha.motivo_evaluacion = datos.get("motivo_evaluacion")
@@ -318,17 +346,16 @@ class PersonaController:
             db.close()
 
     @staticmethod
-    def get_ficha_derivacion(persona_id):
+    def get_ficha_derivacion(atencion_id):
         from database.db_config import SessionLocal
         from database.models import FichaDerivacion
         db = SessionLocal()
         try:
-            ficha = db.query(FichaDerivacion).filter(FichaDerivacion.persona_id == persona_id).first()
+            ficha = db.query(FichaDerivacion).filter(FichaDerivacion.atencion_id == atencion_id).first()
             if ficha:
                 return {
                     "id": ficha.id,
-                    "persona_id": ficha.persona_id,
-                    "fecha_nacimiento": ficha.fecha_nacimiento.strftime("%d/%m/%Y") if ficha.fecha_nacimiento else "",
+                    "atencion_id": ficha.atencion_id,
                     "lugar_nacimiento": ficha.lugar_nacimiento,
                     "ocupacion": ficha.ocupacion,
                     "vive_con": ficha.vive_con,
@@ -352,22 +379,16 @@ class PersonaController:
             db.close()
 
     @staticmethod
-    def guardar_ficha_derivacion(persona_id, datos):
+    def guardar_ficha_derivacion(atencion_id, datos):
         from database.db_config import SessionLocal
         from database.models import FichaDerivacion
         from datetime import datetime
         db = SessionLocal()
         try:
-            ficha = db.query(FichaDerivacion).filter(FichaDerivacion.persona_id == persona_id).first()
+            ficha = db.query(FichaDerivacion).filter(FichaDerivacion.atencion_id == atencion_id).first()
             if not ficha:
-                ficha = FichaDerivacion(persona_id=persona_id)
+                ficha = FichaDerivacion(atencion_id=atencion_id)
                 db.add(ficha)
-            
-            if datos.get("fecha_nacimiento"):
-                try:
-                    ficha.fecha_nacimiento = datetime.strptime(datos["fecha_nacimiento"], "%d/%m/%Y").date()
-                except:
-                    pass
             
             if datos.get("fecha_derivacion"):
                 try:
@@ -403,5 +424,3 @@ class PersonaController:
             return False, str(ex)
         finally:
             db.close()
-
-

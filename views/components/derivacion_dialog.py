@@ -1,25 +1,30 @@
 import flet as ft
 from controllers.persona_controller import PersonaController
 from database.db_config import SessionLocal
-from database.models import Persona
+from database.models import Persona, Atencion
 from core.ui_helpers import mostrar_exito, mostrar_snackbar
 from core.pdf_generator import generar_html_derivacion
 from datetime import datetime
 
-def mostrar_ficha_derivacion_dialog(page: ft.Page, persona_id: int, on_close=None):
+def mostrar_ficha_derivacion_dialog(page: ft.Page, atencion_id: int, on_close=None):
     """
     Muestra el diálogo para rellenar la ficha de derivación.
     """
     
     # ── 1. Cargar Datos ──
     db = SessionLocal()
-    persona_db = db.query(Persona).filter(Persona.id == persona_id).first()
+    atencion_db = db.query(Atencion).filter(Atencion.id == atencion_id).first()
+    if not atencion_db:
+        db.close()
+        return
+        
+    persona_db = db.query(Persona).filter(Persona.id == atencion_db.persona_id).first()
     if not persona_db:
         db.close()
         return
         
     datos_base = {
-        "id": persona_id,
+        "id": atencion_db.persona_id,
         "apellido_paterno": (persona_db.apellidos or "").split()[0] if persona_db.apellidos else "",
         "apellido_materno": (persona_db.apellidos or "").split()[-1] if persona_db.apellidos and len(persona_db.apellidos.split()) > 1 else "",
         "nombres": persona_db.nombres or "",
@@ -32,7 +37,7 @@ def mostrar_ficha_derivacion_dialog(page: ft.Page, persona_id: int, on_close=Non
     }
     db.close()
     
-    ficha = PersonaController.get_ficha_derivacion(persona_id)
+    ficha = PersonaController.get_ficha_derivacion(atencion_id)
     if not ficha:
         ficha = {}
 
@@ -127,7 +132,7 @@ def mostrar_ficha_derivacion_dialog(page: ft.Page, persona_id: int, on_close=Non
 
     def cmd_guardar(e):
         datos = guardar_datos()
-        success, msg = PersonaController.guardar_ficha_derivacion(persona_id, datos)
+        success, msg = PersonaController.guardar_ficha_derivacion(atencion_id, datos)
         if success:
             mostrar_exito(page, "Ficha de Derivación guardada")
             dlg.open = False
@@ -140,7 +145,7 @@ def mostrar_ficha_derivacion_dialog(page: ft.Page, persona_id: int, on_close=Non
     def cmd_imprimir(e):
         # Primero guardamos
         datos = guardar_datos()
-        success, msg = PersonaController.guardar_ficha_derivacion(persona_id, datos)
+        success, msg = PersonaController.guardar_ficha_derivacion(atencion_id, datos)
         if success:
             mostrar_exito(page, "Generando PDF...")
             # Combinamos datos base con los datos del formulario para enviar al HTML

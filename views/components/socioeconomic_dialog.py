@@ -3,11 +3,12 @@ from controllers.persona_controller import PersonaController
 from core.ui_helpers import mostrar_snackbar, mostrar_exito
 
 
-def mostrar_ficha_socioeconomica_dialog(page: ft.Page, persona_id, nombre_estudiante, on_save_callback=None):
+def mostrar_ficha_socioeconomica_dialog(page: ft.Page, atencion_id, nombre_estudiante, on_save_callback=None):
     """Muestra un diálogo AlertDialog flotante premium para rellenar o editar la Ficha Socioeconómica."""
     
     # ── Cargar Ficha Existente si la hay ──────────────────────────────────────
-    ficha = PersonaController.get_ficha_socioeconomica(persona_id)
+    # Intentamos obtener la ficha (esto buscará la persona correcta usando el atencion_id)
+    ficha = PersonaController.get_ficha_socioeconomica(atencion_id)
     datos_previos = ficha or {}
     
     # ── Elementos de UI: Tab 1 (Contexto y Vulnerabilidad) ───────────────────
@@ -168,7 +169,8 @@ def mostrar_ficha_socioeconomica_dialog(page: ft.Page, persona_id, nombre_estudi
             "tiene_energia_electrica": sw_luz.value
         }
         
-        exito, resultado = PersonaController.guardar_ficha_socioeconomica(persona_id, datos)
+        # Guardar en base de datos
+        exito, resultado = PersonaController.guardar_ficha_socioeconomica(atencion_id, datos)
         if exito:
             mostrar_exito(page, "✔ Ficha Socioeconómica guardada correctamente")
             dlg.open = False

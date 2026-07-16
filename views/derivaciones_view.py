@@ -1,7 +1,7 @@
 import flet as ft
 from controllers.persona_controller import PersonaController
 from database.db_config import SessionLocal
-from database.models import Persona, FichaDerivacion
+from database.models import Persona, Atencion, FichaDerivacion
 from core.ui_helpers import mostrar_exito, mostrar_snackbar
 from views.components.derivacion_dialog import mostrar_ficha_derivacion_dialog
 
@@ -49,18 +49,18 @@ def build_derivaciones_view(page: ft.Page):
 
         db = SessionLocal()
         try:
-            # Obtener todas las personas cuyo caso social es "Derivación" O que ya tengan una ficha
-            # Usaremos una consulta personalizada para mayor eficiencia
             from sqlalchemy import or_
             from database.models import CatCasoSocial
             
             casos_derivacion = db.query(CatCasoSocial.id).filter(CatCasoSocial.nombre.ilike("%derivaci%")).all()
             caso_ids = [c[0] for c in casos_derivacion]
             
-            query = db.query(Persona, FichaDerivacion.id.label("ficha_id")).outerjoin(
-                FichaDerivacion, Persona.id == FichaDerivacion.persona_id
-            ).filter(Persona.activo == True).filter(
-                or_(Persona.caso_social_id.in_(caso_ids), FichaDerivacion.id != None)
+            query = db.query(Atencion, Persona, FichaDerivacion.id.label("ficha_id")).select_from(Atencion).join(
+                Persona, Atencion.persona_id == Persona.id
+            ).outerjoin(
+                FichaDerivacion, Atencion.id == FichaDerivacion.atencion_id
+            ).filter(Atencion.activo == True).filter(
+                or_(Atencion.caso_social_id.in_(caso_ids), FichaDerivacion.id != None)
             )
             
             if filtro:
@@ -76,13 +76,13 @@ def build_derivaciones_view(page: ft.Page):
             resultados = query.all()
             
             tabla.rows = []
-            for i, (p, ficha_id) in enumerate(resultados, 1):
+            for i, (atencion, p, ficha_id) in enumerate(resultados, 1):
                 estado_texto = "Completada" if ficha_id else "Pendiente"
                 estado_color = ft.Colors.GREEN_400 if ficha_id else ft.Colors.ORANGE_400
                 
                 tabla.rows.append(ft.DataRow(cells=[
                     ft.DataCell(ft.Text(str(i), size=13)),
-                    ft.DataCell(ft.Text(p.fecha_atencion.strftime("%d/%m/%Y"), size=12)),
+                    ft.DataCell(ft.Text(atencion.fecha_atencion.strftime("%d/%m/%Y"), size=12)),
                     ft.DataCell(ft.Text(p.dni or "-", size=12, weight="bold")),
                     ft.DataCell(ft.Text(f"{p.apellidos}, {p.nombres}", weight="bold", size=12)),
                     ft.DataCell(ft.Text(p.facultad.nombre if p.facultad else "-", size=12)),
@@ -93,7 +93,7 @@ def build_derivaciones_view(page: ft.Page):
                             icon=ft.Icons.ASSIGNMENT_IND, 
                             bgcolor=ft.Colors.BLUE_800 if not ficha_id else ft.Colors.GREEN_800,
                             color=ft.Colors.WHITE,
-                            on_click=lambda _, pid=p.id: mostrar_ficha_derivacion_dialog(page, pid, lambda: cargar_datos(buscador.value))
+                            on_click=lambda _, aid=atencion.id: mostrar_ficha_derivacion_dialog(page, aid, lambda: cargar_datos(buscador.value))
                         )
                     ])),
                 ]))

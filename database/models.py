@@ -38,7 +38,7 @@ class CatCasoSocial(Base):
     nombre = Column(String(50), nullable=False, unique=True)
     activo = Column(Boolean, default=True)
     
-    personas = relationship("Persona", back_populates="caso_social")
+    atenciones = relationship("Atencion", back_populates="caso_social")
 
 # Tipo de Modalidades de ingreso: General, Cepreval, Discapacidad, Hijos de campesino, Violencia Politica ...
 class CatModalidad(Base):
@@ -47,7 +47,7 @@ class CatModalidad(Base):
     nombre = Column(String(50), nullable=False, unique=True)
     activo = Column(Boolean, default=True)
     
-    personas = relationship("Persona", back_populates="modalidad")
+    atenciones = relationship("Atencion", back_populates="modalidad")
 
 # Modelo Principal: Usuario (Login)
 class User(Base):
@@ -59,16 +59,16 @@ class User(Base):
     rol = Column(String(20), default="operador") # administrador, operador
     activo = Column(Boolean, default=True)
 
-# Modelo Principal: Persona o Estudiantes (Bitácora de Atenciones)
+# Modelo Principal: Persona o Estudiantes (Catálogo de Beneficiarios)
 class Persona(Base):
     __tablename__ = "personas"
     id = Column(Integer, primary_key=True, index=True)
-    dni = Column(String(20), index=True, nullable=False) # Permite duplicados para historial
+    dni = Column(String(20), unique=True, index=True, nullable=False)
     nombres = Column(String(100), nullable=False)
     apellidos = Column(String(100), nullable=False)
+    fecha_nacimiento = Column(Date)
     edad = Column(Integer)
     sexo = Column(String(1)) # F, M
-    fecha_atencion = Column(DateTime, nullable=False, default=datetime.now)
     
     codigo_estudiante = Column(String(20))
     año_estudio = Column(String(10))
@@ -76,14 +76,10 @@ class Persona(Base):
     tipo_usuario_id = Column(Integer, ForeignKey("cat_tipos_usuario.id"))
     facultad_id = Column(Integer, ForeignKey("cat_facultades.id"))
     escuela_id = Column(Integer, ForeignKey("cat_escuelas.id"))
-    caso_social_id = Column(Integer, ForeignKey("cat_casos_sociales.id"))
-    modalidad_id = Column(Integer, ForeignKey("cat_modalidades.id"))
-    registro_modalidad = Column(String(100))
     
     celular = Column(String(20))
     correo = Column(String(100))
     direccion = Column(String(200))
-    observaciones = Column(Text)
     activo = Column(Boolean, default=True)
     fecha_registro = Column(DateTime, default=datetime.now)
 
@@ -91,10 +87,30 @@ class Persona(Base):
     tipo_usuario = relationship("CatTipoUsuario", back_populates="personas")
     facultad = relationship("CatFacultad", back_populates="personas")
     escuela = relationship("CatEscuela", back_populates="personas")
-    caso_social = relationship("CatCasoSocial", back_populates="personas")
-    modalidad = relationship("CatModalidad", back_populates="personas")
     ficha_socioeconomica = relationship("FichaSocioeconomica", uselist=False, back_populates="persona", cascade="all, delete-orphan")
-    ficha_derivacion = relationship("FichaDerivacion", uselist=False, back_populates="persona", cascade="all, delete-orphan")
+    atenciones = relationship("Atencion", back_populates="persona", cascade="all, delete-orphan")
+
+
+# Historial de Visitas
+class Atencion(Base):
+    __tablename__ = "atenciones"
+    id = Column(Integer, primary_key=True, index=True)
+    persona_id = Column(Integer, ForeignKey("personas.id"), nullable=False)
+    fecha_atencion = Column(DateTime, nullable=False, default=datetime.now)
+    
+    caso_social_id = Column(Integer, ForeignKey("cat_casos_sociales.id"))
+    modalidad_id = Column(Integer, ForeignKey("cat_modalidades.id"))
+    registro_modalidad = Column(String(100))
+    observaciones = Column(Text)
+    
+    activo = Column(Boolean, default=True)
+    fecha_registro = Column(DateTime, default=datetime.now)
+
+    # Relaciones
+    persona = relationship("Persona", back_populates="atenciones")
+    caso_social = relationship("CatCasoSocial", back_populates="atenciones")
+    modalidad = relationship("CatModalidad", back_populates="atenciones")
+    ficha_derivacion = relationship("FichaDerivacion", uselist=False, back_populates="atencion", cascade="all, delete-orphan")
 
 
 class FichaSocioeconomica(Base):
@@ -138,10 +154,9 @@ class FichaSocioeconomica(Base):
 class FichaDerivacion(Base):
     __tablename__ = "fichas_derivacion"
     id = Column(Integer, primary_key=True, index=True)
-    persona_id = Column(Integer, ForeignKey("personas.id"), nullable=False, unique=True)
+    atencion_id = Column(Integer, ForeignKey("atenciones.id"), nullable=False, unique=True)
     
     # Datos Personales Complementarios
-    fecha_nacimiento = Column(Date)
     lugar_nacimiento = Column(String(100))
     ocupacion = Column(String(100))
     vive_con = Column(String(100))
@@ -168,5 +183,5 @@ class FichaDerivacion(Base):
     observaciones = Column(Text)
     
     # Relaciones
-    persona = relationship("Persona", back_populates="ficha_derivacion")
+    atencion = relationship("Atencion", back_populates="ficha_derivacion")
 

@@ -2,7 +2,7 @@ import flet as ft
 from controllers.persona_controller import PersonaController
 from controllers.catalog_controller import CatalogController
 from database.db_config import SessionLocal
-from database.models import Persona
+from database.models import Persona, Atencion
 from core.ui_helpers import mostrar_exito, mostrar_snackbar
 from datetime import datetime
 import openpyxl
@@ -275,11 +275,16 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         page.update()
 
     # ── Edición ─────────────────────────────────────────────────────────────
-    def abrir_edicion(p_id):
+    def abrir_edicion(a_id):
+        from database.models import Atencion
         db_s = SessionLocal()
-        p = db_s.query(Persona).filter(Persona.id == p_id).first()
+        a = db_s.query(Atencion).filter(Atencion.id == a_id).first()
+        if not a:
+            db_s.close(); return
+        p = db_s.query(Persona).filter(Persona.id == a.persona_id).first()
         if not p:
             db_s.close(); return
+            
         tipos = CatalogController.get_tipos_usuario()
         casos = CatalogController.get_casos_sociales()
         facultades = CatalogController.get_facultades()
@@ -290,7 +295,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         e_dni      = ft.TextField(label="DNI",        value=p.dni,                expand=1)
         e_codigo   = ft.TextField(label="Código",     value=p.codigo_estudiante or "", expand=1)
         e_edad     = ft.TextField(label="Edad",       value=str(p.edad) if p.edad else "", expand=1)
-        e_fecha    = ft.TextField(label="Fecha",      value=p.fecha_atencion.strftime("%d/%m/%Y"), expand=1)
+        e_fecha    = ft.TextField(label="Fecha",      value=a.fecha_atencion.strftime("%d/%m/%Y"), expand=1)
         e_celular  = ft.TextField(label="Celular",    value=p.celular or "",      expand=1)
         e_correo   = ft.TextField(label="Correo",     value=p.correo or "",       expand=1)
         e_año      = ft.Dropdown(
@@ -298,22 +303,22 @@ def build_personas_view(page: ft.Page, on_new_click=None):
             options=[ft.dropdown.Option(str(i), f"{i}° Año") for i in range(1, 11)] + [ft.dropdown.Option("Egresado", "Egresado")]
         )
         e_direccion= ft.TextField(label="Dirección",  value=p.direccion or "",    expand=True)
-        e_obs      = ft.TextField(label="Observaciones", value=p.observaciones or "", expand=True, multiline=True)
+        e_obs      = ft.TextField(label="Observaciones", value=a.observaciones or "", expand=True, multiline=True)
         e_sexo = ft.Dropdown(label="Sexo", value=p.sexo, expand=1,
             options=[ft.dropdown.Option("F","Femenino"), ft.dropdown.Option("M","Masculino")])
         e_tipo = ft.Dropdown(label="Tipo Usuario", value=str(p.tipo_usuario_id) if p.tipo_usuario_id else None, expand=1,
             options=[ft.dropdown.Option(str(t.id), t.nombre) for t in tipos])
-        e_caso = ft.Dropdown(label="Caso Social", value=str(p.caso_social_id) if p.caso_social_id else None, expand=1,
+        e_caso = ft.Dropdown(label="Caso Social", value=str(a.caso_social_id) if a.caso_social_id else None, expand=1,
             options=[ft.dropdown.Option(str(c.id), c.nombre) for c in casos])
         e_facu = ft.Dropdown(label="Facultad", value=str(p.facultad_id) if p.facultad_id else None, expand=1,
             options=[ft.dropdown.Option(str(f.id), f.nombre) for f in facultades])
         e_escu = ft.Dropdown(label="Escuela", value=str(p.escuela_id) if p.escuela_id else None, expand=1)
         
         # ── Modalidades en Edición ──
-        e_mod = ft.Dropdown(label="Modalidad", value=str(p.modalidad_id) if p.modalidad_id else "1", expand=1,
+        e_mod = ft.Dropdown(label="Modalidad", value=str(a.modalidad_id) if a.modalidad_id else "1", expand=1,
             options=[ft.dropdown.Option(str(m.id), m.nombre) for m in modalidades])
             
-        e_reg_mod = ft.TextField(label="Reg. Modalidad", value=p.registro_modalidad or "", expand=1)
+        e_reg_mod = ft.TextField(label="Reg. Modalidad", value=a.registro_modalidad or "", expand=1)
         
         def ue_mod(ev):
             from database.db_config import SessionLocal
@@ -352,22 +357,26 @@ def build_personas_view(page: ft.Page, on_new_click=None):
 
         def guardar(e):
             db = SessionLocal()
-            r = db.query(Persona).filter(Persona.id == p_id).first()
-            if r:
-                r.nombres = e_nombres.value.upper(); r.apellidos = e_apellidos.value.upper()
-                r.dni = e_dni.value; r.codigo_estudiante = e_codigo.value
-                r.edad = int(e_edad.value) if e_edad.value.isdigit() else None
-                r.sexo = e_sexo.value
-                r.tipo_usuario_id = int(e_tipo.value) if e_tipo.value else None
-                r.caso_social_id = int(e_caso.value) if e_caso.value else None
-                r.facultad_id = int(e_facu.value) if e_facu.value else None
-                r.escuela_id = int(e_escu.value) if e_escu.value else None
-                r.modalidad_id = int(e_mod.value) if e_mod.value else None
-                r.registro_modalidad = e_reg_mod.value if e_reg_mod.visible else None
-                r.celular = e_celular.value
-                r.correo = e_correo.value; r.direccion = e_direccion.value
-                r.año_estudio = e_año.value; r.observaciones = e_obs.value
-                try: r.fecha_atencion = datetime.strptime(e_fecha.value, "%d/%m/%Y")
+            at = db.query(Atencion).filter(Atencion.id == a_id).first()
+            if at:
+                per = db.query(Persona).filter(Persona.id == at.persona_id).first()
+                if per:
+                    per.nombres = e_nombres.value.upper(); per.apellidos = e_apellidos.value.upper()
+                    per.dni = e_dni.value; per.codigo_estudiante = e_codigo.value
+                    per.edad = int(e_edad.value) if e_edad.value.isdigit() else None
+                    per.sexo = e_sexo.value
+                    per.tipo_usuario_id = int(e_tipo.value) if e_tipo.value else None
+                    per.facultad_id = int(e_facu.value) if e_facu.value else None
+                    per.escuela_id = int(e_escu.value) if e_escu.value else None
+                    per.celular = e_celular.value
+                    per.correo = e_correo.value; per.direccion = e_direccion.value
+                    per.año_estudio = e_año.value
+                    
+                at.caso_social_id = int(e_caso.value) if e_caso.value else None
+                at.modalidad_id = int(e_mod.value) if e_mod.value else None
+                at.registro_modalidad = e_reg_mod.value if e_reg_mod.visible else None
+                at.observaciones = e_obs.value
+                try: at.fecha_atencion = datetime.strptime(e_fecha.value, "%d/%m/%Y")
                 except: pass
                 db.commit()
             db.close()
