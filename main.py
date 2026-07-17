@@ -6,6 +6,7 @@ from views.dashboard_view import DashboardView
 from views.components.sidebar import Sidebar
 from views.registro_view import build_registro_view
 from views.personas_view import build_personas_view
+from views.usuarios_view import build_usuarios_view
 from views.evaluaciones_view import build_evaluaciones_view
 from views.derivaciones_view import build_derivaciones_view
 from views.config_view import build_config_view
@@ -41,6 +42,8 @@ def main(page: ft.Page):
         elif index == 4:
             main_container.content = build_derivaciones_view(page)
         elif index == 5:
+            main_container.content = build_usuarios_view(page, on_new_click=lambda: navigate_to(1))
+        elif index == 6:
             main_container.content = build_config_view(page)
         page.update()
 

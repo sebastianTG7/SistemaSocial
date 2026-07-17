@@ -502,7 +502,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                 año_nombre = "_".join(sorted(list(selected_años)))[:20]
                 
             estado_tag = "Activos" if estado["mostrar_activos"] else "Inactivos"
-            filename = f"Reporte_Estudiantes_{estado_tag}_{mod_nombre}_{periodo}_{año_nombre}.xlsx"
+            filename = f"Reporte_Atenciones_{estado_tag}_{mod_nombre}_{periodo}_{año_nombre}.xlsx"
             filepath = os.path.join(os.path.expanduser("~"), "Downloads", filename)
             try: wb.save(filepath); mostrar_exito(page, f"✔ en Descargas")
             except: wb.save(filename); mostrar_exito(page, f"✔ en CarpetaLocal")
@@ -765,7 +765,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
     main_column = ft.Column([
         ft.Row([
             ft.Icon(ft.Icons.SCHOOL_ROUNDED, color=ft.Colors.GREEN_400, size=28),
-            ft.Text("Gestión de Estudiantes", size=24, weight="bold"),
+            ft.Text("Gestión de Atenciones", size=24, weight="bold"),
             ft.Container(expand=True),
             ft.ElevatedButton("Excel", icon=ft.Icons.FILE_DOWNLOAD, bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE, on_click=exportar_excel),
             ft.ElevatedButton("+ Nuevo", bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE,

@@ -42,7 +42,6 @@ class PersonaController:
             if not p:
                 p = Persona(dni=datos["dni"])
                 db.add(p)
-                db.flush() # Para obtener el ID
 
             # Actualizamos datos estáticos
             p.nombres = datos["nombres"].upper()
@@ -103,7 +102,7 @@ class PersonaController:
              .outerjoin(FichaSocioeconomica, Persona.id == FichaSocioeconomica.persona_id)
             
             if solo_activos:
-                query = query.filter(Atencion.activo == True)
+                query = query.filter(Atencion.activo == True, Persona.activo == True)
             
             results = query.all()
             return [dict(r._asdict()) for r in results]
@@ -424,3 +423,79 @@ class PersonaController:
             return False, str(ex)
         finally:
             db.close()
+
+    @staticmethod
+    def get_all_personas(solo_activos=True):
+        db = SessionLocal()
+        try:
+            query = db.query(
+                Persona.id, Persona.dni, Persona.nombres, Persona.apellidos,
+                Persona.sexo, Persona.edad, Persona.celular, Persona.correo,
+                Persona.direccion, Persona.codigo_estudiante, Persona.año_estudio,
+                Persona.activo, Persona.tipo_usuario_id, Persona.escuela_id,
+                CatTipoUsuario.nombre.label("tipo_usuario"),
+                CatFacultad.nombre.label("facultad"),
+                CatEscuela.nombre.label("escuela")
+            ).select_from(Persona)\
+             .outerjoin(CatTipoUsuario, Persona.tipo_usuario_id == CatTipoUsuario.id)\
+             .outerjoin(CatFacultad, Persona.facultad_id == CatFacultad.id)\
+             .outerjoin(CatEscuela, Persona.escuela_id == CatEscuela.id)
+            
+            if solo_activos is not None:
+                query = query.filter(Persona.activo == solo_activos)
+            
+            results = query.all()
+            return [dict(r._asdict()) for r in results]
+        finally:
+            db.close()
+
+    @staticmethod
+    def actualizar_persona(p_id, datos):
+        db = SessionLocal()
+        try:
+            p = db.query(Persona).filter(Persona.id == p_id).first()
+            if not p:
+                return False, "Usuario no encontrado"
+                
+            p.nombres = datos.get("nombres", p.nombres).upper()
+            p.apellidos = datos.get("apellidos", p.apellidos).upper()
+            if datos.get("edad") and str(datos["edad"]).isdigit():
+                p.edad = int(datos["edad"])
+            if datos.get("sexo"): p.sexo = datos["sexo"]
+            p.codigo_estudiante = datos.get("codigo_estudiante", p.codigo_estudiante)
+            p.año_estudio = datos.get("año_estudio", p.año_estudio)
+            p.tipo_usuario_id = int(datos["tipo_usuario_id"]) if datos.get("tipo_usuario_id") else p.tipo_usuario_id
+            p.facultad_id = int(datos["facultad_id"]) if datos.get("facultad_id") else p.facultad_id
+            p.escuela_id = int(datos["escuela_id"]) if datos.get("escuela_id") else p.escuela_id
+            p.celular = datos.get("celular", p.celular)
+            p.correo = datos.get("correo", p.correo)
+            p.direccion = datos.get("direccion", p.direccion)
+            
+            db.commit()
+            return True, "Actualizado correctamente"
+        except Exception as ex:
+            db.rollback()
+            return False, str(ex)
+        finally:
+            db.close()
+
+    @staticmethod
+    def desactivar_persona(p_id):
+        db = SessionLocal()
+        p = db.query(Persona).filter(Persona.id == p_id).first()
+        if p: p.activo = False; db.commit()
+        db.close()
+
+    @staticmethod
+    def activar_persona(p_id):
+        db = SessionLocal()
+        p = db.query(Persona).filter(Persona.id == p_id).first()
+        if p: p.activo = True; db.commit()
+        db.close()
+
+    @staticmethod
+    def eliminar_permanente_persona(p_id):
+        db = SessionLocal()
+        p = db.query(Persona).filter(Persona.id == p_id).first()
+        if p: db.delete(p); db.commit()
+        db.close()

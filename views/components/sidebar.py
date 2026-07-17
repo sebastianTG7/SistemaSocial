@@ -26,7 +26,7 @@ class Sidebar(ft.NavigationRail):
             ft.NavigationRailDestination(
                 icon=ft.Icons.LIST_ALT_OUTLINED,
                 selected_icon=ft.Icons.LIST_ALT_ROUNDED,
-                label="Estudiantes",
+                label="Atenciones",
             ),
             ft.NavigationRailDestination(
                 icon=ft.Icons.ASSIGNMENT_IND_OUTLINED,
@@ -37,6 +37,11 @@ class Sidebar(ft.NavigationRail):
                 icon=ft.Icons.SHARE_OUTLINED,
                 selected_icon=ft.Icons.SHARE_ROUNDED,
                 label="Derivaciones",
+            ),
+            ft.NavigationRailDestination(
+                icon=ft.Icons.PEOPLE_ALT_OUTLINED,
+                selected_icon=ft.Icons.PEOPLE_ALT_ROUNDED,
+                label="Usuarios",
             ),
             ft.NavigationRailDestination(
                 icon=ft.Icons.SETTINGS_OUTLINED,
