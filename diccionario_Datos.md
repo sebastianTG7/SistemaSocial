@@ -106,10 +106,10 @@ Registro de cada evento de atención a una persona (Relación 1:N con personas).
 
 ---
 
-### 3. Fichas Especializadas (Relación 1:1 con `personas`)
+### 3. Fichas Especializadas
 
 #### Tabla: `fichas_socioeconomicas`
-Detalle económico, familiar y de vivienda.
+Detalle económico, familiar y de vivienda (Relación 1:1 con `personas`).
 
 | Campo | Tipo SQL | Restricción | Descripción |
 | :--- | :--- | :--- | :--- |
@@ -137,7 +137,7 @@ Detalle económico, familiar y de vivienda.
 | `tiene_energia_electrica`| BOOLEAN| DEFAULT 0 | Acceso a energía eléctrica. |
 
 #### Tabla: `fichas_derivacion`
-Detalles para derivación a otras áreas y evaluación de impacto.
+Detalles para derivación a otras áreas y evaluación de impacto (Relación 1:1 con `atenciones`).
 
 | Campo | Tipo SQL | Restricción | Descripción |
 | :--- | :--- | :--- | :--- |

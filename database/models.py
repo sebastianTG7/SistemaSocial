@@ -4,6 +4,7 @@ from datetime import datetime
 from .db_config import Base
 
 # Modelos de Catálogo (Tablas Maestras)
+#ej.(docente,estudiante,administrativo)
 class CatTipoUsuario(Base):
     __tablename__ = "cat_tipos_usuario"
     id = Column(Integer, primary_key=True, index=True)
