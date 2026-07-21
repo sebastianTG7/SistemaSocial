@@ -315,10 +315,10 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         e_escu = ft.Dropdown(label="Escuela", value=str(p.escuela_id) if p.escuela_id else None, expand=1)
         
         # ── Modalidades en Edición ──
-        e_mod = ft.Dropdown(label="Modalidad", value=str(a.modalidad_id) if a.modalidad_id else "1", expand=1,
+        e_mod = ft.Dropdown(label="Modalidad", value=str(p.modalidad_id) if p.modalidad_id else "1", expand=1,
             options=[ft.dropdown.Option(str(m.id), m.nombre) for m in modalidades])
             
-        e_reg_mod = ft.TextField(label="Reg. Modalidad", value=a.registro_modalidad or "", expand=1)
+        e_reg_mod = ft.TextField(label="Reg. Modalidad", value=p.registro_modalidad or "", expand=1)
         
         def ue_mod(ev):
             from database.db_config import SessionLocal
@@ -371,10 +371,10 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                     per.celular = e_celular.value
                     per.correo = e_correo.value; per.direccion = e_direccion.value
                     per.año_estudio = e_año.value
+                    per.modalidad_id = int(e_mod.value) if e_mod.value else None
+                    per.registro_modalidad = e_reg_mod.value if e_reg_mod.visible else None
                     
                 at.caso_social_id = int(e_caso.value) if e_caso.value else None
-                at.modalidad_id = int(e_mod.value) if e_mod.value else None
-                at.registro_modalidad = e_reg_mod.value if e_reg_mod.visible else None
                 at.observaciones = e_obs.value
                 try: at.fecha_atencion = datetime.strptime(e_fecha.value, "%d/%m/%Y")
                 except: pass

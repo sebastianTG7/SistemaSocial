@@ -48,7 +48,7 @@ class CatModalidad(Base):
     nombre = Column(String(50), nullable=False, unique=True)
     activo = Column(Boolean, default=True)
     
-    atenciones = relationship("Atencion", back_populates="modalidad")
+    personas = relationship("Persona", back_populates="modalidad")
 
 # Modelo Principal: Usuario (Login)
 class User(Base):
@@ -77,6 +77,8 @@ class Persona(Base):
     tipo_usuario_id = Column(Integer, ForeignKey("cat_tipos_usuario.id"))
     facultad_id = Column(Integer, ForeignKey("cat_facultades.id"))
     escuela_id = Column(Integer, ForeignKey("cat_escuelas.id"))
+    modalidad_id = Column(Integer, ForeignKey("cat_modalidades.id"))
+    registro_modalidad = Column(String(100))
     
     celular = Column(String(20))
     correo = Column(String(100))
@@ -88,6 +90,7 @@ class Persona(Base):
     tipo_usuario = relationship("CatTipoUsuario", back_populates="personas")
     facultad = relationship("CatFacultad", back_populates="personas")
     escuela = relationship("CatEscuela", back_populates="personas")
+    modalidad = relationship("CatModalidad", back_populates="personas")
     ficha_socioeconomica = relationship("FichaSocioeconomica", uselist=False, back_populates="persona", cascade="all, delete-orphan")
     atenciones = relationship("Atencion", back_populates="persona", cascade="all, delete-orphan")
 
@@ -100,8 +103,6 @@ class Atencion(Base):
     fecha_atencion = Column(DateTime, nullable=False, default=datetime.now)
     
     caso_social_id = Column(Integer, ForeignKey("cat_casos_sociales.id"))
-    modalidad_id = Column(Integer, ForeignKey("cat_modalidades.id"))
-    registro_modalidad = Column(String(100))
     observaciones = Column(Text)
     
     activo = Column(Boolean, default=True)
@@ -110,7 +111,6 @@ class Atencion(Base):
     # Relaciones
     persona = relationship("Persona", back_populates="atenciones")
     caso_social = relationship("CatCasoSocial", back_populates="atenciones")
-    modalidad = relationship("CatModalidad", back_populates="atenciones")
     ficha_derivacion = relationship("FichaDerivacion", uselist=False, back_populates="atencion", cascade="all, delete-orphan")
 
 
@@ -133,13 +133,22 @@ class FichaSocioeconomica(Base):
     estructura_familiar = Column(String(50))
     dinamica_familiar = Column(String(50))
     
-    # Datos Económicos
-    ingreso_familiar_total = Column(Float, default=0.0)
-    ingreso_becas_bonos = Column(Float, default=0.0)
-    egreso_alquiler = Column(Float, default=0.0)
+    # Datos Económicos (Ingresos)
+    ingreso_economico_miembros = Column(Float, default=0.0)
+    ingreso_becas = Column(Float, default=0.0)
+    ingreso_otros = Column(Float, default=0.0)
+    
+    # Datos Económicos (Egresos)
+    egreso_agua = Column(Float, default=0.0)
+    egreso_luz = Column(Float, default=0.0)
+    egreso_educacion_pasajes = Column(Float, default=0.0)
     egreso_alimentacion = Column(Float, default=0.0)
-    egreso_servicios = Column(Float, default=0.0)
-    egreso_educacion_otros = Column(Float, default=0.0)
+    egreso_alquiler = Column(Float, default=0.0)
+    
+    # Situación Laboral del Estudiante
+    estudiante_trabaja = Column(String(50))
+    lugar_trabajo = Column(String(150))
+    remuneracion_estudiante = Column(Float, default=0.0)
     
     # Características de la Vivienda
     tipo_vivienda = Column(String(50))

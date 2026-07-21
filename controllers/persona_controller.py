@@ -23,8 +23,8 @@ class PersonaController:
                     "celular": p.celular, "correo": p.correo,
                     "direccion": p.direccion,
                     "fecha_atencion": a.fecha_atencion if a else None,
-                    "modalidad_id": a.modalidad_id if a else None,
-                    "registro_modalidad": a.registro_modalidad if a else None,
+                    "modalidad_id": p.modalidad_id,
+                    "registro_modalidad": p.registro_modalidad,
                 }
             return None
         finally:
@@ -56,6 +56,8 @@ class PersonaController:
             p.celular = datos.get("celular") or p.celular
             p.correo = datos.get("correo") or p.correo
             p.direccion = datos.get("direccion") or p.direccion
+            p.modalidad_id = datos.get("modalidad_id") or p.modalidad_id
+            p.registro_modalidad = datos.get("registro_modalidad") or p.registro_modalidad
             
             db.flush()
 
@@ -64,8 +66,6 @@ class PersonaController:
                 persona_id=p.id,
                 fecha_atencion=fecha,
                 caso_social_id=datos.get("caso_social_id"),
-                modalidad_id=datos.get("modalidad_id"),
-                registro_modalidad=datos.get("registro_modalidad"),
                 observaciones=datos.get("observaciones"),
             )
             db.add(a)
@@ -86,7 +86,7 @@ class PersonaController:
                 Persona.sexo, Persona.edad, Persona.celular, Persona.correo,
                 Persona.direccion, Atencion.fecha_atencion, Atencion.activo,
                 Persona.codigo_estudiante, Persona.año_estudio, Atencion.observaciones,
-                Atencion.modalidad_id, Atencion.registro_modalidad,
+                Persona.modalidad_id, Persona.registro_modalidad,
                 CatTipoUsuario.nombre.label("tipo_usuario"),
                 CatCasoSocial.nombre.label("caso_social"),
                 CatFacultad.nombre.label("facultad"),
@@ -98,7 +98,7 @@ class PersonaController:
              .outerjoin(CatCasoSocial, Atencion.caso_social_id == CatCasoSocial.id)\
              .outerjoin(CatFacultad, Persona.facultad_id == CatFacultad.id)\
              .outerjoin(CatEscuela, Persona.escuela_id == CatEscuela.id)\
-             .outerjoin(CatModalidad, Atencion.modalidad_id == CatModalidad.id)\
+             .outerjoin(CatModalidad, Persona.modalidad_id == CatModalidad.id)\
              .outerjoin(FichaSocioeconomica, Persona.id == FichaSocioeconomica.persona_id)
             
             if solo_activos:
@@ -222,12 +222,17 @@ class PersonaController:
                     "tipo_seguro": ficha.tipo_seguro,
                     "estructura_familiar": ficha.estructura_familiar,
                     "dinamica_familiar": ficha.dinamica_familiar,
-                    "ingreso_familiar_total": ficha.ingreso_familiar_total,
-                    "ingreso_becas_bonos": ficha.ingreso_becas_bonos,
-                    "egreso_alquiler": ficha.egreso_alquiler,
+                    "ingreso_economico_miembros": ficha.ingreso_economico_miembros,
+                    "ingreso_becas": ficha.ingreso_becas,
+                    "ingreso_otros": ficha.ingreso_otros,
+                    "egreso_agua": ficha.egreso_agua,
+                    "egreso_luz": ficha.egreso_luz,
+                    "egreso_educacion_pasajes": ficha.egreso_educacion_pasajes,
                     "egreso_alimentacion": ficha.egreso_alimentacion,
-                    "egreso_servicios": ficha.egreso_servicios,
-                    "egreso_educacion_otros": ficha.egreso_educacion_otros,
+                    "egreso_alquiler": ficha.egreso_alquiler,
+                    "estudiante_trabaja": ficha.estudiante_trabaja,
+                    "lugar_trabajo": ficha.lugar_trabajo,
+                    "remuneracion_estudiante": ficha.remuneracion_estudiante,
                     "tipo_vivienda": ficha.tipo_vivienda,
                     "material_paredes": ficha.material_paredes,
                     "material_techo": ficha.material_techo,
@@ -267,12 +272,17 @@ class PersonaController:
                 try: return float(val) if val else 0.0
                 except: return 0.0
                 
-            ficha.ingreso_familiar_total = to_float(datos.get("ingreso_familiar_total"))
-            ficha.ingreso_becas_bonos = to_float(datos.get("ingreso_becas_bonos"))
-            ficha.egreso_alquiler = to_float(datos.get("egreso_alquiler"))
+            ficha.ingreso_economico_miembros = to_float(datos.get("ingreso_economico_miembros"))
+            ficha.ingreso_becas = to_float(datos.get("ingreso_becas"))
+            ficha.ingreso_otros = to_float(datos.get("ingreso_otros"))
+            ficha.egreso_agua = to_float(datos.get("egreso_agua"))
+            ficha.egreso_luz = to_float(datos.get("egreso_luz"))
+            ficha.egreso_educacion_pasajes = to_float(datos.get("egreso_educacion_pasajes"))
             ficha.egreso_alimentacion = to_float(datos.get("egreso_alimentacion"))
-            ficha.egreso_servicios = to_float(datos.get("egreso_servicios"))
-            ficha.egreso_educacion_otros = to_float(datos.get("egreso_educacion_otros"))
+            ficha.egreso_alquiler = to_float(datos.get("egreso_alquiler"))
+            ficha.estudiante_trabaja = datos.get("estudiante_trabaja")
+            ficha.lugar_trabajo = datos.get("lugar_trabajo")
+            ficha.remuneracion_estudiante = to_float(datos.get("remuneracion_estudiante"))
             
             ficha.tipo_vivienda = datos.get("tipo_vivienda")
             ficha.material_paredes = datos.get("material_paredes")
@@ -313,13 +323,13 @@ class PersonaController:
             luz = sum(1 for f in fichas if f.tiene_energia_electrica)
             
             # 3. Datos Económicos Promedio
-            avg_ingreso = sum(f.ingreso_familiar_total for f in fichas) / total if total > 0 else 0.0
-            avg_becas = sum(f.ingreso_becas_bonos for f in fichas) / total if total > 0 else 0.0
+            avg_ingreso = sum((f.ingreso_economico_miembros or 0.0) for f in fichas) / total if total > 0 else 0.0
+            avg_becas = sum((f.ingreso_becas or 0.0) for f in fichas) / total if total > 0 else 0.0
             
-            avg_alquiler = sum(f.egreso_alquiler for f in fichas) / total if total > 0 else 0.0
-            avg_alimentacion = sum(f.egreso_alimentacion for f in fichas) / total if total > 0 else 0.0
-            avg_servicios = sum(f.egreso_servicios for f in fichas) / total if total > 0 else 0.0
-            avg_educacion = sum(f.egreso_educacion_otros for f in fichas) / total if total > 0 else 0.0
+            avg_alquiler = sum((f.egreso_alquiler or 0.0) for f in fichas) / total if total > 0 else 0.0
+            avg_alimentacion = sum((f.egreso_alimentacion or 0.0) for f in fichas) / total if total > 0 else 0.0
+            avg_servicios = sum(((f.egreso_agua or 0.0) + (f.egreso_luz or 0.0)) for f in fichas) / total if total > 0 else 0.0
+            avg_educacion = sum((f.egreso_educacion_pasajes or 0.0) for f in fichas) / total if total > 0 else 0.0
             
             # 4. Motivos de Evaluación
             motivos = {}
@@ -433,13 +443,16 @@ class PersonaController:
                 Persona.sexo, Persona.edad, Persona.celular, Persona.correo,
                 Persona.direccion, Persona.codigo_estudiante, Persona.año_estudio,
                 Persona.activo, Persona.tipo_usuario_id, Persona.escuela_id,
+                Persona.modalidad_id, Persona.registro_modalidad,
                 CatTipoUsuario.nombre.label("tipo_usuario"),
                 CatFacultad.nombre.label("facultad"),
-                CatEscuela.nombre.label("escuela")
+                CatEscuela.nombre.label("escuela"),
+                CatModalidad.nombre.label("modalidad")
             ).select_from(Persona)\
              .outerjoin(CatTipoUsuario, Persona.tipo_usuario_id == CatTipoUsuario.id)\
              .outerjoin(CatFacultad, Persona.facultad_id == CatFacultad.id)\
-             .outerjoin(CatEscuela, Persona.escuela_id == CatEscuela.id)
+             .outerjoin(CatEscuela, Persona.escuela_id == CatEscuela.id)\
+             .outerjoin(CatModalidad, Persona.modalidad_id == CatModalidad.id)
             
             if solo_activos is not None:
                 query = query.filter(Persona.activo == solo_activos)
@@ -470,6 +483,8 @@ class PersonaController:
             p.celular = datos.get("celular", p.celular)
             p.correo = datos.get("correo", p.correo)
             p.direccion = datos.get("direccion", p.direccion)
+            p.modalidad_id = int(datos["modalidad_id"]) if datos.get("modalidad_id") else p.modalidad_id
+            p.registro_modalidad = datos.get("registro_modalidad", p.registro_modalidad)
             
             db.commit()
             return True, "Actualizado correctamente"

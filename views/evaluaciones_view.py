@@ -398,7 +398,14 @@ def build_evaluaciones_view(page: ft.Page):
         p_all = [p for p in p_all if p["activo"]]
         
         # Filtrar únicamente Casos de "Evaluación" o "Evaluación y Seguimiento" (que contengan evaluaci)
-        p_all = [p for p in p_all if "evaluaci" in (p.get("caso_social") or "").lower()]
+        p_eval = [p for p in p_all if "evaluaci" in (p.get("caso_social") or "").lower()]
+        
+        # Deduplicar por DNI para que cada estudiante solo aparezca una vez
+        p_unique = {}
+        for p in sorted(p_eval, key=lambda x: x["fecha_atencion"], reverse=True):
+            if p["dni"] not in p_unique:
+                p_unique[p["dni"]] = p
+        p_all = list(p_unique.values())
         
         # Filtrar por período (mes y año)
         if selected_meses:
@@ -482,7 +489,8 @@ def build_evaluaciones_view(page: ft.Page):
                 ficha_det = PersonaController.get_ficha_socioeconomica(pid)
                 if ficha_det:
                     sisfoh_val = ficha_det.get("sisfoh_condicion") or "Registrado"
-                    ingreso_val = f"S/. {ficha_det.get('ingreso_familiar_total'):.2f}"
+                    _ing_tot = (ficha_det.get("ingreso_economico_miembros") or 0.0) + (ficha_det.get("ingreso_becas") or 0.0) + (ficha_det.get("ingreso_otros") or 0.0)
+                    ingreso_val = f"S/. {_ing_tot:.2f}"
             
             sisfoh_color = ft.Colors.GREEN_400 if tiene_f else ft.Colors.AMBER_400
             ingreso_color = ft.Colors.GREEN_300 if tiene_f else ft.Colors.WHITE_54

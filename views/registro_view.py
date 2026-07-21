@@ -170,18 +170,54 @@ def build_registro_view(page: ft.Page):
                 confirm_dlg.open = False
                 page.update()
                 
-            confirm_dlg.title = ft.Text("📝 Evaluación Socioeconómica Detectada")
-            confirm_dlg.content = ft.Text("¿Deseas rellenar la Ficha Socioeconómica del estudiante ahora?")
+            ficha_existente = PersonaController.get_ficha_socioeconomica(p_id)
+            if ficha_existente:
+                confirm_dlg.title = ft.Text("📝 Ficha Socioeconómica Existente")
+                confirm_dlg.content = ft.Text("Este estudiante ya tiene una Ficha Socioeconómica registrada. ¿Deseas actualizarla?")
+                confirm_dlg.actions = [
+                    ft.TextButton("No, dejarla como está", on_click=al_no),
+                    ft.ElevatedButton("Sí, Actualizar", on_click=al_si, bgcolor=ft.Colors.BLUE_800, color=ft.Colors.WHITE)
+                ]
+            else:
+                confirm_dlg.title = ft.Text("📝 Evaluación Socioeconómica Detectada")
+                confirm_dlg.content = ft.Text("¿Deseas rellenar la Ficha Socioeconómica del estudiante ahora?")
+                confirm_dlg.actions = [
+                    ft.TextButton("En otro momento", on_click=al_no),
+                    ft.ElevatedButton("Sí, Rellenar", on_click=al_si, bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE)
+                ]
+            confirm_dlg.actions_alignment = "end"
+            
+            if confirm_dlg not in page.overlay:
+                page.overlay.append(confirm_dlg)
+            confirm_dlg.open = True
+            page.update()
+
+        def preguntar_derivacion(p_id):
+            confirm_dlg = ft.AlertDialog(modal=True)
+            
+            def al_si(e):
+                confirm_dlg.open = False
+                page.update()
+                from views.components.derivacion_dialog import mostrar_ficha_derivacion_dialog
+                mostrar_ficha_derivacion_dialog(page, p_id, on_close=None)
+                
+            def al_no(e):
+                confirm_dlg.open = False
+                page.update()
+                
+            confirm_dlg.title = ft.Text("📝 Derivación Detectada")
+            confirm_dlg.content = ft.Text("¿Deseas rellenar la Ficha de Derivación para esta atención ahora?")
             confirm_dlg.actions = [
                 ft.TextButton("En otro momento", on_click=al_no),
                 ft.ElevatedButton("Sí, Rellenar", on_click=al_si, bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE)
             ]
             confirm_dlg.actions_alignment = "end"
             
-            page.overlay.clear()
-            page.overlay.append(confirm_dlg)
+            if confirm_dlg not in page.overlay:
+                page.overlay.append(confirm_dlg)
             confirm_dlg.open = True
             page.update()
+
 
         exito, resultado = PersonaController.registrar(datos)
         if exito:
@@ -189,12 +225,15 @@ def build_registro_view(page: ft.Page):
             nombres_completos = f"{f_apellidos.value}, {f_nombres.value}"
             mostrar_exito(page, "Registro de atención guardado")
             
-            # Verificar si requiere Ficha Socioeconómica (Caso 1 o 2)
+            # Verificar si requiere Ficha Socioeconómica o Derivación basada en el nombre
             caso_id = int(dd_caso.value) if dd_caso.value else None
+            caso_nombre = next((c.nombre for c in casos_sociales if c.id == caso_id), "").lower()
             limpiar()
             
-            if caso_id in [1, 2]:
+            if "evaluaci" in caso_nombre:
                 preguntar_ficha(p_id, nombres_completos)
+            elif "derivaci" in caso_nombre:
+                preguntar_derivacion(p_id)
         else:
             mostrar_snackbar(page, f"Error: {resultado}", ft.Colors.RED_800)
         page.update()
