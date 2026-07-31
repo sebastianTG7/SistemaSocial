@@ -192,21 +192,26 @@ erDiagram
         string apellidos
         int edad
         string sexo
-        datetime fecha_atencion
         string codigo_estudiante
         string año_estudio
         int tipo_usuario_id FK
         int facultad_id FK
         int escuela_id FK
-        int caso_social_id FK
-        int modalidad_id FK
-        string registro_modalidad
         string celular
         string correo
         string direccion
-        string observaciones
         boolean activo
         datetime fecha_registro
+    }
+
+    atenciones {
+        int id PK
+        int persona_id FK
+        datetime fecha_atencion
+        int caso_social_id FK
+        int modalidad_id FK
+        string registro_modalidad
+        string observaciones
     }
 
     fichas_socioeconomicas {
@@ -239,14 +244,16 @@ erDiagram
     cat_tipos_usuario ||--o{ personas : "se asigna a"
     cat_facultades ||--o{ personas : "pertenece a"
     cat_escuelas ||--o{ personas : "estudia en"
-    cat_casos_sociales ||--o{ personas : "motivo de"
-    cat_modalidades ||--o{ personas : "ingreso por"
-    personas ||--o| fichas_socioeconomicas : "tiene (1:1)"
+    personas ||--o{ atenciones : "realiza (1:N)"
+    cat_casos_sociales ||--o{ atenciones : "motivo de"
+    cat_modalidades ||--o{ atenciones : "ingreso por"
+    atenciones ||--o| fichas_socioeconomicas : "tiene (1:1)"
 ```
 
 #### Descripción de Tablas Principales:
-*   **`personas`**: Guarda el histórico de atenciones. La clave `dni` no es única, lo que permite que el mismo estudiante tenga múltiples registros a lo largo del tiempo, construyendo una bitácora detallada de asistencias.
-*   **`fichas_socioeconomicas`**: Almacena los indicadores socioeconómicos, ingresos, egresos, seguro de salud y condiciones de vivienda de las personas evaluadas. Está vinculada con una relación de uno a uno (`1:1`) con un registro de la tabla `personas`. Si se elimina o depura una atención, su ficha socioeconómica asociada se elimina en cascada (`cascade="all, delete-orphan"`).
+*   **`personas`**: Entidad principal que almacena los datos demográficos permanentes de los estudiantes (DNI único, nombres, facultad).
+*   **`atenciones`**: Tabla transaccional que registra cada evento o visita del estudiante a la oficina. Al estar separada de `personas`, un mismo estudiante puede tener múltiples registros de atención en diferentes fechas sin duplicar su información personal.
+*   **`fichas_socioeconomicas`**: Almacena los indicadores socioeconómicos, ingresos, egresos, y condiciones de vivienda. Está vinculada con una relación de uno a uno (`1:1`) con un registro de la tabla `atenciones` (cada atención de evaluación genera una ficha). Si se elimina una atención, su ficha se elimina en cascada (`cascade="all, delete-orphan"`).
 *   **`usuarios`**: Almacena las credenciales de operadores y administradores.
 *   **Catálogos Maestros (`cat_*`)**: Tablas de parametrización para centralizar y estandarizar datos (Escuelas, Facultades, Tipos de Usuario, Casos Sociales, Modalidades de Ingreso).
 

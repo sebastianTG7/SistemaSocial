@@ -1,74 +1,146 @@
-2. Consulta de Base de Datos: ¿SQLite o migrar a MySQL / Postgres / MongoDB?
-📊 Mi recomendación definitiva: Quédate en SQLite
-Para el tipo de aplicación que estás construyendo (uso personal, ejecutable local, registro individual), SQLite es la mejor base de datos posible. Te explico por qué:
+# Diseño y Modelado de Base de Datos - Sistema Social
 
-Portabilidad sin dolores de cabeza (Serverless):
-Si usas MySQL o PostgreSQL, tendrías que instalar un servidor de base de datos en cada computadora donde lleves tu aplicación. Con SQLite, toda la base de datos vive dentro del archivo servicio_social.db. Si copias tu proyecto en un USB o en la nube, ¡te llevas tus datos contigo al instante!
-Rendimiento de sobra:
-SQLite es increíblemente rápido. Puede almacenar hasta 281 Terabytes de datos y manejar millones de filas. Para los miles de registros que tú harás en tu gestión social, el archivo apenas pesará unos pocos Megabytes y tus búsquedas se resolverán en milisegundos.
-Es una base de datos relacional real:
-Usa SQL estándar, tiene llaves primarias, llaves foráneas y soporta integridad referencial. Es tan robusta que es la base de datos por defecto en todos los teléfonos móviles (Android/iOS), navegadores web (Chrome/Firefox) y sistemas de escritorio.
-¿Cuándo deberías migrar a Postgres o MySQL?
-Únicamente si el día de mañana decides hacer una página web donde 5 o más personas deban registrar datos al mismo tiempo desde diferentes lugares. Mientras seas solo tú en tu aplicación de escritorio, SQLite es el rey indiscutible.
+## 1. Fase de Análisis y Conceptualización (Pre-Normalización)
 
-3. Guía de Modelado y Normalización para tu Informe de Tesis
-¡Haber iniciado con la base de datos sin un diagrama es normal en el desarrollo ágil! No te preocupes. Tu estructura actual es muy limpia y sigue excelentes prácticas. A continuación, tienes toda la documentación formal de tu base de datos lista para copiar a tu informe técnico o diapositivas.
+Para el diseño de la base de datos, el flujo se inició con un **Modelo Conceptual (Diagrama Entidad-Relación inicial)** orientado a capturar la totalidad de los datos requeridos por el sistema. Inicialmente, la abstracción partió de una gran macro-entidad de "Registro o Atención" donde se pretendía agrupar toda la información personal del estudiante, sus datos académicos (facultad, escuela), el tipo de caso social y los múltiples detalles que componen las fichas. 
 
-📐 A. Modelo Lógico (Esquema Relacional)
-Tu base de datos está organizada bajo una arquitectura de Tablas Maestras (Catálogos) que nutren a una Tabla Operativa Principal (personas).
+Para que el modelo llegara al estado consolidado que tenemos ahora, fue necesario aplicar **reglas de normalización**. Este proceso evolutivo nos permitió:
+- **Separar datos repetitivos** y estáticos (como Facultades, Escuelas, Modalidades de Ingreso y Tipos de Casos Sociales) en **tablas de catálogo (maestras)** para evitar redundancia e inconsistencias (Primera y Segunda Forma Normal).
+- **Desacoplar las fichas de evaluación** (`FichaSocioeconomica` y `FichaDerivacion`) de la tabla principal `Persona`. Si no hubiéramos normalizado, la tabla `Persona` tendría demasiados campos vacíos (nulos) cuando un estudiante no requiriera una ficha específica, violando los principios de un buen diseño.
 
-NOTE
+---
 
-Detalle clave de diseño: La tabla personas actúa en realidad como una Bitácora de Atenciones. Permite DNI duplicados intencionalmente, lo cual es excelente porque permite registrar a una misma persona en diferentes fechas, manteniendo su historial completo de visitas.
+## 2. Definición de Relaciones (Cardinalidad)
 
-cat_tipos_usuario (Almacena categorías como "Estudiante", "Docente", "Externo").
-cat_facultades (Listado de facultades de la universidad).
-cat_escuelas (Escuelas profesionales, asociadas a una facultad mediante Llave Foránea).
-cat_casos_sociales (Tipos de atención: "Salud", "Ayuda alimentaria", "Familiar", etc.).
-usuarios (Credenciales del sistema para el login).
-personas (Atenciones registradas).
-💻 B. Modelo Físico (Diccionario de Datos)
-Aquí tienes el detalle técnico de las tablas principales para tu informe:
+Una vez normalizado el modelo, las entidades se conectan entre sí mediante las siguientes relaciones específicas. Estas relaciones son clave para que puedas armar tu diagrama final:
 
-1. Tabla Principal: personas (Registro de Atenciones)
-Campo	Tipo	Restricción	Descripción
-id	INTEGER	Primary Key, Autoincrement	Identificador único de la atención.
-dni	VARCHAR(20)	INDEX	DNI de la persona atendida.
-nombres	VARCHAR(100)	NOT NULL	Nombres del usuario.
-apellidos	VARCHAR(100)	NOT NULL	Apellidos del usuario.
-edad	INTEGER		Edad.
-sexo	VARCHAR(1)		'M' o 'F'.
-fecha_atencion	DATETIME	NOT NULL	Fecha de la atención.
-codigo_estudiante	VARCHAR(20)		Código universitario (opcional).
-año_estudio	VARCHAR(10)		Ciclo/Año de estudio.
-tipo_usuario_id	INTEGER	Foreign Key (cat_tipos_usuario.id)	Tipo de usuario.
-facultad_id	INTEGER	Foreign Key (cat_facultades.id)	Facultad.
-escuela_id	INTEGER	Foreign Key (cat_escuelas.id)	Escuela Profesional.
-caso_social_id	INTEGER	Foreign Key (cat_casos_sociales.id)	Categoría del caso.
-celular	VARCHAR(20)		Teléfono de contacto.
-correo	VARCHAR(100)		Correo electrónico.
-direccion	VARCHAR(200)		Dirección de domicilio.
-observaciones	TEXT		Detalles adicionales de la atención.
-activo	BOOLEAN	DEFAULT True	Estado de baja lógica del registro.
-fecha_registro	DATETIME	DEFAULT Now()	Fecha y hora en que se creó en sistema.
-2. Tabla Maestras (Ejemplo: cat_escuelas)
-Campo	Tipo	Restricción	Descripción
-id	INTEGER	Primary Key, Autoincrement	Identificador único.
-nombre	VARCHAR(100)	NOT NULL	Nombre de la escuela.
-facultad_id	INTEGER	Foreign Key (cat_facultades.id)	Relación con la facultad.
-activo	BOOLEAN	DEFAULT True	Estado del catálogo.
-🎓 C. Demostración de Normalización (Tu sustento académico)
-En tu informe debes explicar que tu base de datos cumple con las Tres Formas Normales (3FN) para demostrar que es un diseño eficiente y libre de redundancias:
+### Relaciones de Uno a Muchos (1:N)
+- **Facultad a Escuela (1:N):** Una facultad puede tener múltiples escuelas profesionales, pero una escuela pertenece a una única facultad.
+- **Catálogo a Persona (1:N):** 
+  - **CatTipoUsuario a Persona:** Un tipo de usuario (ej. Estudiante) es asignado a muchas personas.
+  - **CatFacultad a Persona:** Una facultad alberga a muchos estudiantes (personas registradas).
+  - **CatEscuela a Persona:** Una escuela alberga a muchos estudiantes (personas registradas).
+  - **CatCasoSocial a Persona:** Un tipo de caso social puede estar asociado a muchas atenciones (personas).
+  - **CatModalidad a Persona:** Una modalidad de ingreso puede estar presente en muchos estudiantes (personas).
 
-Primera Forma Normal (1FN) - Atomicidad:
+### Relaciones de Uno a Uno (1:1)
+- **Persona a FichaSocioeconomica (1:1):** Un registro de atención de una persona tiene, como máximo, una sola Ficha Socioeconómica (una persona tiene solo una ficha socioeconómica).
+- **Persona a FichaDerivacion (1:1):** Un registro de atención de una persona tiene, como máximo, una sola Ficha de Derivación (una persona tiene solo una ficha de derivación).
 
-Regla: Todos los atributos deben ser atómicos (valores indivisibles) y no deben existir grupos repetitivos.
-Sustento: Tu diseño cumple plenamente. Por ejemplo, en lugar de guardar teléfono y correo juntos, tienes columnas separadas (celular, correo). Tampoco hay listas de datos dentro de una celda.
-Segunda Forma Normal (2FN) - Dependencia Completa:
+---
 
-Regla: Debe cumplir con 1FN y todas las columnas que no sean llaves primarias deben depender directamente de la clave primaria de la tabla (id).
-Sustento: Cumple. Cada fila representa una atención única (personas.id). Campos como edad, observaciones o fecha_atencion dependen por completo de ese registro de atención particular.
-Tercera Forma Normal (3FN) - Sin Dependencias Transitivas:
+## 3. Modelo Relacional Normalizado (Diccionario de Datos Actual)
 
-Regla: Debe cumplir con 2FN y no deben existir dependencias transitivas entre campos que no son llaves (las columnas no clave deben depender únicamente de la clave primaria, no de otras columnas).
-Sustento: Aquí es donde brilla tu base de datos. En lugar de guardar el texto "Facultad de Ingeniería de Sistemas" o "Salud Mental" en cada celda de la tabla personas (lo cual generaría redundancia excesiva, errores de escritura y pesadez), tu base de datos almacena números identificadores (facultad_id, caso_social_id) apuntando a tablas maestras. Si el día de mañana la Facultad cambia de nombre, solo lo modificas en la tabla cat_facultades una sola vez, y automáticamente se actualiza en todas las atenciones sin alterar la integridad de tus datos.
+A continuación, se detalla el esquema exacto consolidado tras la normalización. Incluye las entidades, sus atributos, llaves (PK/FK) y los tipos de datos listos para tu informe.
+
+### 3.1 Entidades de Catálogo (Tablas Maestras)
+
+**Entidad: CatTipoUsuario**
+*Descripción:* Define el tipo de público que está recibiendo la atención (ej. Estudiante, Docente, Administrativo, Egresado). Sirve para categorizar a la `Persona` atendida.
+- `id` : INT(11) [PK]
+- `nombre` : VARCHAR(50)
+- `activo` : BOOLEAN (o TINYINT(1))
+
+**Entidad: CatFacultad**
+- `id` : INT(11) [PK]
+- `nombre` : VARCHAR(100)
+- `activo` : BOOLEAN
+
+**Entidad: CatEscuela**
+- `id` : INT(11) [PK]
+- `nombre` : VARCHAR(100)
+- `facultad_id` : INT(11) [FK -> CatFacultad.id]
+- `activo` : BOOLEAN
+
+**Entidad: CatCasoSocial**
+- `id` : INT(11) [PK]
+- `nombre` : VARCHAR(50)
+- `activo` : BOOLEAN
+
+**Entidad: CatModalidad**
+- `id` : INT(11) [PK]
+- `nombre` : VARCHAR(50)
+- `activo` : BOOLEAN
+
+### 3.2 Entidades Principales y Transaccionales
+
+**Entidad: Usuario** (Credenciales del sistema)
+*Nota para tu Diagrama ER:* Esta tabla representa al **personal (trabajadores sociales, operadores, administradores)** que ingresa al sistema, NO a los estudiantes. Es normal que en tu diagrama quede como una "entidad aislada" (sin líneas hacia las otras tablas), ya que su único fin es el acceso al software.
+- `id` : INT(11) [PK]
+- `username` : VARCHAR(50)
+- `password_hash` : VARCHAR(255)
+- `nombre_completo` : VARCHAR(200)
+- `rol` : VARCHAR(20)
+- `activo` : BOOLEAN
+
+**Entidad: Persona** (Bitácora central de atención)
+*Nota de diseño (Justificación para el informe):* La llave primaria de esta tabla es el `id` y **no el `dni`**. Se diseñó como una "bitácora": si usáramos el DNI como llave, el estudiante solo podría registrarse una vez en la vida. Al usar un `id` interno, el sistema permite que un mismo DNI se registre múltiples veces en diferentes fechas, manteniendo un historial de atenciones.
+- `id` : INT(11) [PK]
+- `dni` : VARCHAR(20)
+- `nombres` : VARCHAR(100)
+- `apellidos` : VARCHAR(100)
+- `edad` : INT(3)
+- `sexo` : VARCHAR(1)
+- `fecha_atencion` : DATETIME
+- `codigo_estudiante` : VARCHAR(20)
+- `año_estudio` : VARCHAR(10)
+- `tipo_usuario_id` : INT(11) [FK -> CatTipoUsuario.id]
+- `facultad_id` : INT(11) [FK -> CatFacultad.id]
+- `escuela_id` : INT(11) [FK -> CatEscuela.id]
+- `caso_social_id` : INT(11) [FK -> CatCasoSocial.id]
+- `modalidad_id` : INT(11) [FK -> CatModalidad.id]
+- `registro_modalidad` : VARCHAR(100)
+- `celular` : VARCHAR(20)
+- `correo` : VARCHAR(100)
+- `direccion` : VARCHAR(200)
+- `observaciones` : TEXT
+- `activo` : BOOLEAN
+- `fecha_registro` : DATETIME
+
+### 3.3 Entidades de Fichas Especializadas
+
+**Entidad: FichaSocioeconomica** 
+- `id` : INT(11) [PK]
+- `persona_id` : INT(11) [FK -> Persona.id] *(Relación 1:1 con Persona)*
+- `motivo_evaluacion` : VARCHAR(100)
+- `sisfoh_condicion` : VARCHAR(50)
+- `tiene_discapacidad` : BOOLEAN
+- `tipo_discapacidad` : VARCHAR(50)
+- `nivel_de_discapacidad` : VARCHAR(50)
+- `tipo_seguro` : VARCHAR(50)
+- `estructura_familiar` : VARCHAR(50)
+- `dinamica_familiar` : VARCHAR(50)
+- `ingreso_familiar_total` : FLOAT (o DECIMAL(10,2))
+- `ingreso_becas_bonos` : FLOAT (o DECIMAL(10,2))
+- `egreso_alquiler` : FLOAT (o DECIMAL(10,2))
+- `egreso_alimentacion` : FLOAT (o DECIMAL(10,2))
+- `egreso_servicios` : FLOAT (o DECIMAL(10,2))
+- `egreso_educacion_otros` : FLOAT (o DECIMAL(10,2))
+- `tipo_vivienda` : VARCHAR(50)
+- `material_paredes` : VARCHAR(50)
+- `material_techo` : VARCHAR(50)
+- `tiene_agua_red` : BOOLEAN
+- `tiene_desague_red` : BOOLEAN
+- `tiene_energia_electrica` : BOOLEAN
+
+**Entidad: FichaDerivacion**
+- `id` : INT(11) [PK]
+- `persona_id` : INT(11) [FK -> Persona.id] *(Relación 1:1 con Persona)*
+- `fecha_nacimiento` : DATE
+- `lugar_nacimiento` : VARCHAR(100)
+- `ocupacion` : VARCHAR(100)
+- `vive_con` : VARCHAR(100)
+- `telefono_familiares` : VARCHAR(50)
+- `area_deriva` : VARCHAR(100)
+- `area_derivada` : VARCHAR(100)
+- `fecha_derivacion` : DATETIME
+- `motivo_consulta` : TEXT
+- `tiene_derivaciones_previas` : BOOLEAN
+- `detalle_derivaciones_previas` : TEXT
+- `condicion` : VARCHAR(50)
+- `impacto_academico` : BOOLEAN
+- `impacto_social` : BOOLEAN
+- `impacto_familiar` : BOOLEAN
+- `impacto_personal` : BOOLEAN
+- `diagnostico` : TEXT
+- `observaciones` : TEXT
