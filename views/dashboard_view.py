@@ -1,11 +1,15 @@
 import flet as ft
 from controllers.persona_controller import PersonaController
 from datetime import datetime
+from database.db_config import SessionLocal
+from database.models import User
+from core.security import hash_password, verify_password
 
 class DashboardView(ft.Column):
     def __init__(self, page: ft.Page, user, on_logout):
         super().__init__()
         self.main_page = page
+        self.user = user
         self.spacing = 20
         self.expand = True
         self.scroll = ft.ScrollMode.AUTO
@@ -50,6 +54,8 @@ class DashboardView(ft.Column):
                 ft.Column([self.title_text, self.sub_text], spacing=2),
                 ft.Container(expand=True),
                 self.btn_theme, self.dd_mes, self.dd_anio,
+                ft.IconButton(ft.Icons.KEY_ROUNDED, on_click=self.cambiar_mi_password,
+                              icon_color=ft.Colors.ORANGE_400, tooltip="Cambiar mi contraseña"),
                 ft.IconButton(ft.Icons.LOGOUT_ROUNDED, on_click=on_logout, icon_color=ft.Colors.RED_400),
             ]), padding=ft.Padding(0, 0, 0, 10)
         )
@@ -280,3 +286,88 @@ class DashboardView(ft.Column):
             shadow=ft.BoxShadow(blur_radius=15, color=ui["shadow"], offset=ft.Offset(0,10)),
             content=ft.Column([ft.Text(title, size=14, weight="bold", color=ui["text_main"]), ft.Divider(height=10, color="transparent"), content])
         )
+
+    def cambiar_mi_password(self, e):
+        """Diálogo para que el usuario cambie su propia contraseña."""
+        campo_actual = ft.TextField(
+            label="Contraseña actual", password=True, can_reveal_password=True,
+            width=300, border_color=ft.Colors.BLUE_700,
+        )
+        campo_nueva = ft.TextField(
+            label="Nueva contraseña", password=True, can_reveal_password=True,
+            width=300, border_color=ft.Colors.BLUE_700,
+        )
+        campo_confirmar = ft.TextField(
+            label="Confirmar nueva contraseña", password=True, can_reveal_password=True,
+            width=300, border_color=ft.Colors.BLUE_700,
+        )
+        msg_error = ft.Text("", color=ft.Colors.RED_400, size=12)
+
+        dlg = ft.AlertDialog(modal=True)
+
+        def al_guardar(ev):
+            actual = (campo_actual.value or "").strip()
+            nueva = (campo_nueva.value or "").strip()
+            confirmar = (campo_confirmar.value or "").strip()
+
+            if not actual:
+                msg_error.value = "⚠ Ingrese su contraseña actual."
+                self.main_page.update()
+                return
+            if not nueva:
+                msg_error.value = "⚠ Ingrese la nueva contraseña."
+                self.main_page.update()
+                return
+            if len(nueva) < 4:
+                msg_error.value = "⚠ Mínimo 4 caracteres."
+                self.main_page.update()
+                return
+            if nueva != confirmar:
+                msg_error.value = "⚠ Las contraseñas no coinciden."
+                self.main_page.update()
+                return
+
+            db = SessionLocal()
+            try:
+                user = db.query(User).filter(User.id == self.user["id"]).first()
+                if not user:
+                    msg_error.value = "⚠ Usuario no encontrado."
+                    self.main_page.update()
+                    return
+                if not verify_password(actual, user.password_hash):
+                    msg_error.value = "⚠ La contraseña actual es incorrecta."
+                    self.main_page.update()
+                    return
+                user.password_hash = hash_password(nueva)
+                db.commit()
+                dlg.open = False
+                self.main_page.update()
+                from core.ui_helpers import mostrar_exito
+                mostrar_exito(self.main_page, "Contraseña cambiada correctamente.")
+            finally:
+                db.close()
+
+        def al_cancelar(ev):
+            dlg.open = False
+            self.main_page.update()
+
+        dlg.title = ft.Text("🔑 Cambiar Mi Contraseña")
+        dlg.content = ft.Column([
+            ft.Text(f"Usuario: {self.user['username']}", size=13, weight="bold"),
+            ft.Container(height=10),
+            campo_actual,
+            campo_nueva,
+            campo_confirmar,
+            msg_error,
+        ], tight=True, spacing=10)
+        dlg.actions = [
+            ft.TextButton("Cancelar", on_click=al_cancelar),
+            ft.ElevatedButton("Guardar", on_click=al_guardar,
+                              bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE),
+        ]
+        dlg.actions_alignment = "end"
+
+        self.main_page.overlay = [c for c in self.main_page.overlay if not isinstance(c, ft.AlertDialog)]
+        self.main_page.overlay.append(dlg)
+        dlg.open = True
+        self.main_page.update()

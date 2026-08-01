@@ -1,7 +1,7 @@
 import flet as ft
 
 class Sidebar(ft.NavigationRail):
-    def __init__(self, on_change):
+    def __init__(self, on_change, user_rol="operador"):
         super().__init__()
         self.selected_index = 0
         self.label_type = ft.NavigationRailLabelType.ALL
@@ -12,7 +12,8 @@ class Sidebar(ft.NavigationRail):
         self.bgcolor = ft.Colors.with_opacity(0.1, ft.Colors.BLUE_900)
         self.indicator_color = ft.Colors.GREEN_800
 
-        self.destinations = [
+        # Destinos base (visibles para todos)
+        destinos = [
             ft.NavigationRailDestination(
                 icon=ft.Icons.DASHBOARD_OUTLINED,
                 selected_icon=ft.Icons.DASHBOARD_ROUNDED,
@@ -43,9 +44,22 @@ class Sidebar(ft.NavigationRail):
                 selected_icon=ft.Icons.PEOPLE_ALT_ROUNDED,
                 label="Usuarios",
             ),
+
             ft.NavigationRailDestination(
                 icon=ft.Icons.SETTINGS_OUTLINED,
                 selected_icon=ft.Icons.SETTINGS_ROUNDED,
                 label="Config.",
             ),
         ]
+
+        # Solo el administrador ve "Gestionar Cuentas"
+        if user_rol == "administrador":
+            destinos.append(
+                ft.NavigationRailDestination(
+                    icon=ft.Icons.ADMIN_PANEL_SETTINGS_OUTLINED,
+                    selected_icon=ft.Icons.ADMIN_PANEL_SETTINGS_ROUNDED,
+                    label="Cuentas",
+                )
+            )
+
+        self.destinations = destinos

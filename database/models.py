@@ -57,6 +57,7 @@ class User(Base):
     username = Column(String(50), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     nombre_completo = Column(String(200))
+    cargo = Column(String(100))  # "Trabajadora Social", "Administrador", etc.
     rol = Column(String(20), default="operador") # administrador, operador
     activo = Column(Boolean, default=True)
 

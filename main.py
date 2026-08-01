@@ -10,6 +10,8 @@ from views.usuarios_view import build_usuarios_view
 from views.evaluaciones_view import build_evaluaciones_view
 from views.derivaciones_view import build_derivaciones_view
 from views.config_view import build_config_view
+from views.importar_view import build_importar_view
+from views.cuentas_view import build_cuentas_view
 
 from core.backup_manager import BackupManager
 
@@ -24,6 +26,8 @@ def main(page: ft.Page):
 
     state = {"user": None}
     main_container = ft.Container(expand=True)
+
+
 
     # ── Contenedor raíz único ──────────────────────────────────────────────
     root = ft.Container(expand=True)
@@ -45,9 +49,19 @@ def main(page: ft.Page):
             main_container.content = build_usuarios_view(page, on_new_click=lambda: navigate_to(1))
         elif index == 6:
             main_container.content = build_config_view(page)
+        elif index == 7:
+            main_container.content = build_cuentas_view(page)
         page.update()
 
     sidebar = Sidebar(on_change=lambda e: navigate_to(e.control.selected_index))
+
+    def crear_sidebar_con_rol(rol):
+        """Recrea el sidebar con las opciones según el rol del usuario."""
+        nonlocal sidebar
+        sidebar = Sidebar(
+            on_change=lambda e: navigate_to(e.control.selected_index),
+            user_rol=rol,
+        )
 
     def logout(e=None):
         state["user"] = None
@@ -55,6 +69,8 @@ def main(page: ft.Page):
 
     def login_success(user_data):
         state["user"] = user_data
+        # Recrear sidebar con las opciones según el rol
+        crear_sidebar_con_rol(user_data.get("rol", "operador"))
         layout = ft.Row([
             sidebar,
             ft.VerticalDivider(width=1, color=ft.Colors.BLUE_900),
@@ -104,7 +120,7 @@ def main(page: ft.Page):
                     BackupManager.hacer_respaldo()
             except Exception:
                 pass
-            page.window_destroy()
+            page.window.destroy()
 
     page.window_prevent_close = True
     page.on_window_event      = on_window_event
@@ -116,4 +132,4 @@ if __name__ == "__main__":
     import os
     if not os.path.exists("assets"):
         os.makedirs("assets")
-    ft.run(main, assets_dir="assets")
+    ft.run(main, assets_dir="assets", name="Sistema de Gestión Social")

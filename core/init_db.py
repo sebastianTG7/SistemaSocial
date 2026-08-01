@@ -64,8 +64,18 @@ FACULTADES_ESCUELAS = {
 
 
 def init_db():
-    # Crear todas las tablas
+    # Crear todas las tablas (para DBs nuevas)
     Base.metadata.create_all(bind=engine)
+
+    # ── Migración: agregar columna 'cargo' si no existe ─────────────────────
+    from sqlalchemy import text, inspect
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        columnas = [col["name"] for col in inspector.get_columns("usuarios")]
+        if "cargo" not in columnas:
+            conn.execute(text("ALTER TABLE usuarios ADD COLUMN cargo VARCHAR(100)"))
+            conn.commit()
+            print("  [OK] Migracion: columna 'cargo' agregada a la tabla 'usuarios'.")
 
     db = SessionLocal()
 
@@ -76,16 +86,30 @@ def init_db():
             username="admin",
             password_hash=hashed_password.decode("utf-8"),
             nombre_completo="Administrador del Sistema",
+            cargo="Administrador",
             rol="administrador",
         )
         db.add(admin_user)
-        print("  ✔ Usuario 'admin' creado (Pass: admin123).")
+        print("  [OK] Usuario 'admin' creado (Pass: admin123).")
+
+    # 1b. Usuario operador por defecto
+    if db.query(User).filter(User.username == "neri").first() is None:
+        hashed_neri = bcrypt.hashpw("19604085".encode("utf-8"), bcrypt.gensalt())
+        neri_user = User(
+            username="neri",
+            password_hash=hashed_neri.decode("utf-8"),
+            nombre_completo="Neri",
+            cargo="Trabajadora Social",
+            rol="operador",
+        )
+        db.add(neri_user)
+        print("  [OK] Usuario 'neri' creado (operador).")
 
     # 2. Tipos de usuario
     if db.query(CatTipoUsuario).count() == 0:
         tipos = [CatTipoUsuario(nombre="Estudiante"), CatTipoUsuario(nombre="Egresado")]
         db.add_all(tipos)
-        print("  ✔ Catálogo Tipos de Usuario inicializado.")
+        print("  [OK] Catálogo Tipos de Usuario inicializado.")
 
     # 3. Casos sociales
     if db.query(CatCasoSocial).count() == 0:
@@ -96,7 +120,7 @@ def init_db():
             CatCasoSocial(nombre="Derivación"),
         ]
         db.add_all(casos)
-        print("  ✔ Catálogo Casos Sociales inicializado.")
+        print("  [OK] Catálogo Casos Sociales inicializado.")
 
     # 4. Facultades y Escuelas reales
     if db.query(CatFacultad).count() == 0:
@@ -107,7 +131,7 @@ def init_db():
             for nombre_escuela in escuelas:
                 escuela = CatEscuela(nombre=nombre_escuela, facultad_id=facultad.id)
                 db.add(escuela)
-        print(f"  ✔ {len(FACULTADES_ESCUELAS)} Facultades y sus Escuelas inicializadas.")
+        print(f"  [OK] {len(FACULTADES_ESCUELAS)} Facultades y sus Escuelas inicializadas.")
 
     db.commit()
     db.close()
