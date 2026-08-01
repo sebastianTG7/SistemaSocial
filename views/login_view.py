@@ -138,11 +138,121 @@ class LoginView(ft.Container):
         )
         if user:
             self.error_text.value = ""
-            self.on_login_success(user)
+            # Detectar si el admin ingreso con la contrasena por defecto
+            if (user.get("username") == "admin"
+                    and self._es_clave_defecto(self.password_field.value)):
+                self._pedir_cambio_contrasena(user)
+            else:
+                self.on_login_success(user)
         else:
             self.error_text.value = "Usuario o contrasena incorrectos"
             self.login_button.disabled = False
             self.main_page.update()
+
+    @staticmethod
+    def _es_clave_defecto(password: str) -> bool:
+        return password == "admin123"
+
+    def _pedir_cambio_contrasena(self, user: dict):
+        """Modal obligatorio: el admin debe cambiar la contrasena antes de entrar."""
+        nueva_field = ft.TextField(
+            label="Nueva contrasena",
+            prefix_icon=ft.Icons.LOCK_OUTLINED,
+            password=True,
+            can_reveal_password=True,
+            border_radius=10,
+            border_color=ft.Colors.WHITE12,
+            focused_border_color=ft.Colors.BLUE_400,
+            bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.WHITE),
+            color=ft.Colors.WHITE,
+            label_style=ft.TextStyle(color=ft.Colors.WHITE54),
+        )
+        confirmar_field = ft.TextField(
+            label="Confirmar contrasena",
+            prefix_icon=ft.Icons.LOCK_OUTLINED,
+            password=True,
+            can_reveal_password=True,
+            border_radius=10,
+            border_color=ft.Colors.WHITE12,
+            focused_border_color=ft.Colors.BLUE_400,
+            bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.WHITE),
+            color=ft.Colors.WHITE,
+            label_style=ft.TextStyle(color=ft.Colors.WHITE54),
+        )
+        txt_error = ft.Text("", size=12, color=ft.Colors.RED_300)
+
+        def guardar(_):
+            nueva     = nueva_field.value.strip()
+            confirmar = confirmar_field.value.strip()
+
+            if len(nueva) < 6:
+                txt_error.value = "La contrasena debe tener al menos 6 caracteres."
+                self.main_page.update()
+                return
+            if nueva != confirmar:
+                txt_error.value = "Las contrasenas no coinciden."
+                self.main_page.update()
+                return
+
+            # Guardar nueva contrasena en la BD activa
+            from controllers.auth_controller import AuthController as AC
+            ok = AC.cambiar_password(user["id"], nueva)
+            if not ok:
+                txt_error.value = "Error al guardar la contrasena. Intenta de nuevo."
+                self.main_page.update()
+                return
+
+            dlg.open = False
+            self.main_page.update()
+            self.on_login_success(user)
+
+        dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Column(
+                [
+                    ft.Text(
+                        "Cambio de contrasena requerido",
+                        size=16,
+                        weight=ft.FontWeight.W_600,
+                        color=ft.Colors.WHITE,
+                    ),
+                    ft.Text(
+                        "Estas ingresando con la contrasena por defecto. "
+                        "Por seguridad debes establecer una nueva contrasena antes de continuar.",
+                        size=12,
+                        color=ft.Colors.WHITE54,
+                    ),
+                ],
+                spacing=4,
+                tight=True,
+            ),
+            content=ft.Column(
+                [
+                    ft.Divider(height=1, color=ft.Colors.WHITE10),
+                    nueva_field,
+                    confirmar_field,
+                    txt_error,
+                ],
+                spacing=12,
+                tight=True,
+            ),
+            actions=[
+                ft.FilledButton(
+                    "Guardar y continuar",
+                    icon=ft.Icons.CHECK_ROUNDED,
+                    style=ft.ButtonStyle(
+                        bgcolor=ft.Colors.BLUE_700,
+                        color=ft.Colors.WHITE,
+                    ),
+                    on_click=guardar,
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        self.main_page.overlay.append(dlg)
+        dlg.open = True
+        self.login_button.disabled = False
+        self.main_page.update()
 
     # ── Importar desde login ──────────────────────────────────────────────────
     def _abrir_importar(self, e):

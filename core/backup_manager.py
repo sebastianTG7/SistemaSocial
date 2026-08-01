@@ -1,6 +1,8 @@
 import os
 import shutil
 import json
+import sqlite3
+import bcrypt
 from datetime import date, datetime
 from database.db_config import DB_PATH as _DB_PATH_REL
 
@@ -63,6 +65,24 @@ class BackupManager:
             raise FileNotFoundError(f"Base de datos no encontrada en: {DB_PATH}")
 
         shutil.copy2(DB_PATH, ruta_destino)
+
+        # Resetear la contraseña del admin en la COPIA exportada.
+        # La base de datos activa NO se modifica.
+        # Esto garantiza que al importar en otra PC siempre se pueda
+        # acceder con admin / admin123 y luego cambiar la contraseña.
+        try:
+            hash_defecto = bcrypt.hashpw(
+                "admin123".encode("utf-8"), bcrypt.gensalt()
+            ).decode("utf-8")
+            con = sqlite3.connect(ruta_destino)
+            con.execute(
+                "UPDATE usuarios SET password_hash = ? WHERE username = 'admin'",
+                (hash_defecto,),
+            )
+            con.commit()
+            con.close()
+        except Exception:
+            pass  # Si falla, el backup igual se guarda; solo no tiene el reset
 
         # Actualizar fecha de último respaldo
         cfg["ultimo_respaldo"] = date.today().isoformat()

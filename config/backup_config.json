@@ -1,5 +1,5 @@
 {
-  "automatico": false,
+  "automatico": true,
   "intervalo_dias": 1,
   "carpeta": "C:\\Users\\Sebastian\\Downloads",
   "ultimo_respaldo": "2026-07-31"

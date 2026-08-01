@@ -10,7 +10,9 @@ def build_cuentas_view(page: ft.Page):
 
     # ── Helpers Diálogos ─────────────────────────────────────────────────────
     def mostrar_dialogo(dlg):
-        page.overlay = [c for c in page.overlay if not isinstance(c, ft.AlertDialog)]
+        for c in list(page.overlay):
+            if isinstance(c, ft.AlertDialog):
+                page.overlay.remove(c)
         page.overlay.append(dlg)
         dlg.open = True
         page.update()
