@@ -309,8 +309,60 @@ def build_personas_view(page: ft.Page, on_new_click=None):
             options=[ft.dropdown.Option("F","Femenino"), ft.dropdown.Option("M","Masculino")])
         e_tipo = ft.Dropdown(label="Tipo Usuario", value=str(p.tipo_usuario_id) if p.tipo_usuario_id else None, expand=1,
             options=[ft.dropdown.Option(str(t.id), t.nombre) for t in tipos])
-        e_caso = ft.Dropdown(label="Caso Social", value=str(a.caso_social_id) if a.caso_social_id else None, expand=1,
-            options=[ft.dropdown.Option(str(c.id), c.nombre) for c in casos])
+
+        # ── Casos Sociales Múltiples en Edición (Selector compacto) ──
+        caso_obj = next((c for c in casos if c.id == a.caso_social_id), None)
+        caso_str = caso_obj.nombre if caso_obj else ""
+        casos_previos = [c.strip().lower() for c in caso_str.split(",")]
+        nombres_casos_base = ["Orientación", "Evaluación", "Seguimiento", "Derivación"]
+        for c in casos:
+            if c.nombre not in nombres_casos_base and "," not in c.nombre:
+                nombres_casos_base.append(c.nombre)
+
+        e_cb_casos = [ft.Checkbox(label=nom, value=any(cp in nom.lower() or nom.lower() in cp for cp in casos_previos)) for nom in nombres_casos_base]
+
+        e_txt_caso_display = ft.Text("", size=12, color=ft.Colors.WHITE, expand=True)
+        sel_init = [cb.label for cb in e_cb_casos if cb.value]
+        e_txt_caso_display.value = ", ".join(sel_init) if sel_init else "Seleccionar..."
+        e_txt_caso_display.color = ft.Colors.WHITE if sel_init else ft.Colors.WHITE54
+
+        e_caso_panel = ft.Container(
+            visible=False, padding=ft.padding.symmetric(horizontal=10, vertical=6),
+            border_radius=6, bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.WHITE),
+            content=ft.Row(e_cb_casos, wrap=True, spacing=6, run_spacing=2)
+        )
+        e_caso_vis = {"val": False}
+        e_chevron = ft.Icon(ft.Icons.KEYBOARD_ARROW_DOWN_ROUNDED, size=18, color=ft.Colors.WHITE54)
+
+        def _e_toggle_caso(ev):
+            e_caso_vis["val"] = not e_caso_vis["val"]
+            e_caso_panel.visible = e_caso_vis["val"]
+            e_chevron.name = ft.Icons.KEYBOARD_ARROW_UP_ROUNDED if e_caso_vis["val"] else ft.Icons.KEYBOARD_ARROW_DOWN_ROUNDED
+            page.update()
+
+        def _e_caso_changed(ev):
+            sel = [cb.label for cb in e_cb_casos if cb.value]
+            e_txt_caso_display.value = ", ".join(sel) if sel else "Seleccionar..."
+            e_txt_caso_display.color = ft.Colors.WHITE if sel else ft.Colors.WHITE54
+            page.update()
+
+        for cb in e_cb_casos:
+            cb.on_change = _e_caso_changed
+
+        e_cnt_casos = ft.Column([
+            ft.Container(
+                on_click=_e_toggle_caso,
+                padding=ft.padding.symmetric(horizontal=10, vertical=8),
+                border=ft.border.all(1, ft.Colors.with_opacity(0.25, ft.Colors.WHITE)),
+                border_radius=6,
+                content=ft.Row([
+                    ft.Column([ft.Text("Caso Social", size=10, color=ft.Colors.WHITE54), e_txt_caso_display], spacing=1, expand=True),
+                    e_chevron
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+            ),
+            e_caso_panel
+        ], spacing=4)
+
         e_facu = ft.Dropdown(label="Facultad", value=str(p.facultad_id) if p.facultad_id else None, expand=1,
             options=[ft.dropdown.Option(str(f.id), f.nombre) for f in facultades])
         e_escu = ft.Dropdown(label="Escuela", value=str(p.escuela_id) if p.escuela_id else None, expand=1)
@@ -375,22 +427,25 @@ def build_personas_view(page: ft.Page, on_new_click=None):
                     per.modalidad_id = int(e_mod.value) if e_mod.value else None
                     per.registro_modalidad = e_reg_mod.value if e_reg_mod.visible else None
                     
-                at.caso_social_id = int(e_caso.value) if e_caso.value else None
+                casos_sel = [cb.label for cb in e_cb_casos if cb.value]
+                nombre_editado = ", ".join(casos_sel)
+                at.caso_social_id = CatalogController.get_or_create_caso_social(nombre_editado)
                 at.observaciones = e_obs.value
                 try: at.fecha_atencion = datetime.strptime(e_fecha.value, "%d/%m/%Y")
                 except: pass
                 db.commit()
             db.close()
-            mostrar_exito(page, "✔ Registro actualizado")
+            mostrar_exito(page, "Registro actualizado")
             cerrar_dialogo(dlg)
             cargar_datos(buscador.value)
 
-        dlg.title = ft.Text("✏ Editar Registro", weight="bold", size=18)
+        dlg.title = ft.Text("Editar Registro", weight="bold", size=18)
         dlg.content = ft.Container(width=750, content=ft.Column([
             ft.Row([e_dni, e_fecha, e_edad], spacing=10),
             ft.Row([e_nombres, e_apellidos], spacing=10),
             ft.Row([e_sexo, e_codigo, e_año], spacing=10),
-            ft.Row([e_tipo, e_caso], spacing=10),
+            ft.Row([e_tipo], spacing=10),
+            e_cnt_casos,
             ft.Row([e_facu, e_escu], spacing=10),
             ft.Row([e_mod, e_reg_mod], spacing=10),
             ft.Row([e_celular, e_correo], spacing=10),
@@ -399,7 +454,7 @@ def build_personas_view(page: ft.Page, on_new_click=None):
         dlg.actions = [
             ft.TextButton("Cancelar", on_click=lambda _: cerrar_dialogo(dlg)),
             ft.ElevatedButton("Guardar Todo", on_click=guardar,
-                bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE, icon=ft.Icons.SAVE),
+                bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE),
         ]
         dlg.actions_alignment = "end"
         mostrar_dialogo(dlg)

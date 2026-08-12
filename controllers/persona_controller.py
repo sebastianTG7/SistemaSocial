@@ -149,7 +149,24 @@ class PersonaController:
                 .filter(Atencion.activo == True)
             if mes: q_casos = q_casos.filter(extract('month', Atencion.fecha_atencion) == int(mes))
             if anio: q_casos = q_casos.filter(extract('year', Atencion.fecha_atencion) == int(anio))
-            casos = q_casos.group_by(CatCasoSocial.nombre).all()
+            casos_raw = q_casos.group_by(CatCasoSocial.nombre).all()
+
+            casos_dict = {"Evaluación": 0, "Seguimiento": 0, "Orientación": 0, "Derivación": 0}
+
+            for nom_caso, cnt in casos_raw:
+                if not nom_caso:
+                    continue
+
+                partes = [p.strip() for p in nom_caso.split(",") if p.strip()]
+                partes_clean = [p.lower().replace("ó", "o").replace("á", "a") for p in partes]
+
+                for cat in ["Evaluación", "Seguimiento", "Orientación", "Derivación"]:
+                    cat_clean = cat.lower().replace("ó", "o").replace("á", "a")
+                    if any(cat_clean == p or cat_clean in p for p in partes_clean):
+                        casos_dict[cat] += cnt
+
+                if nom_caso not in ["Evaluación", "Seguimiento", "Orientación", "Derivación"]:
+                    casos_dict[nom_caso] = cnt
 
             # 4. Escuelas
             q_escu = db.query(CatEscuela.nombre, func.count(Atencion.id))\
@@ -173,7 +190,7 @@ class PersonaController:
             return {
                 "total_periodo": total,
                 "tipos": {n: c for n, c in tipos},
-                "casos_periodo": {n: c for n, c in casos},
+                "casos_periodo": casos_dict,
                 "top_escuelas": [{"label": n, "count": c} for n, c in facultades_top5],
                 "todas_escuelas": [{"label": n, "count": c} for n, c in facultades_todas],
                 "sexo": {s if s else "N/A": c for s, c in sexo}

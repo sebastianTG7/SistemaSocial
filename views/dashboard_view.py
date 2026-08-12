@@ -228,8 +228,20 @@ class DashboardView(ft.Column):
         # 1. Cards
         self.container_cards.controls = [self._card_3d("Total Atenciones", str(data["total_periodo"]), ft.Colors.BLUE_400, ui)]
         casos = data["casos_periodo"]
-        for cat in ["Evaluación", "Evaluación y Seguimiento", "Seguimiento", "Orientacion"]:
-            self.container_cards.controls.append(self._card_3d(cat, str(casos.get(cat,0)), ft.Colors.GREEN_400, ui))
+        
+        cats_config = [
+            ("Evaluación", "Evaluación", ft.Colors.GREEN_400),
+            ("Seguimiento", "Seguimiento", ft.Colors.TEAL_400),
+            ("Orientación", "Orientación", ft.Colors.AMBER_400),
+            ("Derivaciones", "Derivación", ft.Colors.PURPLE_400),
+        ]
+        
+        for label_card, clave_caso, color in cats_config:
+            val = casos.get(clave_caso, 0)
+            if val == 0:
+                # Probar variantes sin acento por compatibilidad
+                val = casos.get(clave_caso.replace("ó", "o").replace("á", "a"), 0)
+            self.container_cards.controls.append(self._card_3d(label_card, str(val), color, ui))
 
         # 2. Charts
         v_est = 0

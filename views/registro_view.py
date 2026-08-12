@@ -16,7 +16,7 @@ def build_registro_view(page: ft.Page):
 
     # ── Campos con Lógica de Autocompletado ──────────────────────────────────
     def on_dni_change(e):
-        if len(f_dni.value) == 8: # Cuando se completa el DNI de 8 dígitos
+        if len(f_dni.value) == 8:
             p = PersonaController.buscar_por_dni(f_dni.value)
             if p:
                 f_nombres.value = p["nombres"]
@@ -27,26 +27,31 @@ def build_registro_view(page: ft.Page):
                 dd_año.value = p["año_estudio"] or None
                 dd_tipo.value = str(p["tipo_usuario_id"]) if p["tipo_usuario_id"] else None
                 dd_facultad.value = str(p["facultad_id"]) if p["facultad_id"] else None
-                
-                # Cargar escuelas para esa facultad
+
                 if dd_facultad.value:
                     on_facultad_change(None)
                     dd_escuela.value = str(p["escuela_id"]) if p["escuela_id"] else None
-                
+
                 dd_modalidad.value = str(p["modalidad_id"]) if p["modalidad_id"] else "1"
                 f_registro_modalidad.value = p["registro_modalidad"] or ""
                 on_modalidad_change(None)
-                
+
                 f_celular.value = p["celular"] or ""
                 f_correo.value = p["correo"] or ""
                 f_direccion.value = p["direccion"] or ""
-                
+
+                if p.get("caso_social"):
+                    casos_previos = [c.strip().lower() for c in p["caso_social"].split(",")]
+                    for cb in cb_casos:
+                        cb.value = any(cp in cb.label.lower() or cb.label.lower() in cp for cp in casos_previos)
+                    _actualizar_texto_caso()
+
                 mes_nombre = "N/A"
                 if p.get("fecha_atencion"):
                     MESES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
                     mes_nombre = MESES[p["fecha_atencion"].month - 1]
 
-                status_text.value = f"ℹ Registro previo encontrado ({mes_nombre}). Datos actualizados."
+                status_text.value = f"Registro previo encontrado ({mes_nombre}). Datos actualizados."
                 status_text.color = ft.Colors.BLUE_400
             page.update()
 
@@ -67,7 +72,7 @@ def build_registro_view(page: ft.Page):
     f_observaciones = ft.TextField(label="Observaciones", multiline=True, min_lines=3, expand=True)
 
     dd_escuela = ft.Dropdown(label="Escuela Profesional *", disabled=True, expand=True)
-    
+
     def on_facultad_change(e):
         if dd_facultad.value:
             escuelas = CatalogController.get_escuelas_by_facultad(int(dd_facultad.value))
@@ -78,9 +83,77 @@ def build_registro_view(page: ft.Page):
 
     dd_sexo = ft.Dropdown(label="Sexo *", width=150, options=[ft.dropdown.Option("F", "Femenino"), ft.dropdown.Option("M", "Masculino")])
     dd_tipo = ft.Dropdown(label="Tipo de Usuario *", width=210, options=[ft.dropdown.Option(str(t.id), t.nombre) for t in tipos_usuario])
-    dd_caso = ft.Dropdown(label="Caso Social *", width=200, options=[ft.dropdown.Option(str(c.id), c.nombre) for c in casos_sociales])
+
+    # ── Casos Sociales Múltiples (Selector compacto desplegable) ──────────────
+    nombres_casos_base = ["Orientación", "Evaluación", "Seguimiento", "Derivación"]
+    for c in casos_sociales:
+        if c.nombre not in nombres_casos_base and "," not in c.nombre:
+            nombres_casos_base.append(c.nombre)
+
+    cb_casos = [ft.Checkbox(label=nom, value=False) for nom in nombres_casos_base]
+    lbl_caso_error = ft.Text("", color=ft.Colors.RED_400, size=11, visible=False)
+
+    # Texto que muestra la selección actual dentro del campo
+    txt_caso_display = ft.Text("Seleccionar...", size=13, color=ft.Colors.WHITE54, expand=True)
+
+    def _actualizar_texto_caso():
+        seleccionados = [cb.label for cb in cb_casos if cb.value]
+        if seleccionados:
+            txt_caso_display.value = ", ".join(seleccionados)
+            txt_caso_display.color = ft.Colors.WHITE
+        else:
+            txt_caso_display.value = "Seleccionar..."
+            txt_caso_display.color = ft.Colors.WHITE54
+
+    # Panel desplegable oculto por defecto
+    caso_panel_visible = {"val": False}
+    caso_panel = ft.Container(
+        visible=False,
+        padding=ft.padding.only(left=12, right=12, top=6, bottom=6),
+        border_radius=6,
+        bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.WHITE),
+        content=ft.Row(cb_casos, wrap=True, spacing=8, run_spacing=2)
+    )
+
+    def _toggle_caso_panel(e):
+        caso_panel_visible["val"] = not caso_panel_visible["val"]
+        caso_panel.visible = caso_panel_visible["val"]
+        chevron_icon.name = ft.Icons.KEYBOARD_ARROW_UP_ROUNDED if caso_panel_visible["val"] else ft.Icons.KEYBOARD_ARROW_DOWN_ROUNDED
+        page.update()
+
+    def _on_caso_changed(e):
+        _actualizar_texto_caso()
+        lbl_caso_error.visible = False
+        lbl_caso_error.value = ""
+        page.update()
+
+    for cb in cb_casos:
+        cb.on_change = _on_caso_changed
+
+    chevron_icon = ft.Icon(ft.Icons.KEYBOARD_ARROW_DOWN_ROUNDED, size=20, color=ft.Colors.WHITE54)
+
+    cnt_caso_header = ft.Container(
+        on_click=_toggle_caso_panel,
+        padding=ft.padding.symmetric(horizontal=12, vertical=10),
+        border=ft.border.all(1, ft.Colors.with_opacity(0.25, ft.Colors.WHITE)),
+        border_radius=6,
+        content=ft.Row([
+            ft.Column([
+                ft.Text("Caso Social *", size=11, color=ft.Colors.WHITE54),
+                txt_caso_display
+            ], spacing=1, expand=True),
+            chevron_icon
+        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+    )
+
+    cnt_casos = ft.Column([
+        cnt_caso_header,
+        caso_panel,
+        lbl_caso_error
+    ], spacing=4, expand=True)
+
     dd_facultad = ft.Dropdown(label="Facultad *", expand=True, on_select=on_facultad_change, options=[ft.dropdown.Option(str(f.id), f.nombre) for f in facultades])
-    
+
     # ── Modalidades ──
     dd_modalidad = ft.Dropdown(
         label="Modalidad de Ingreso *", width=240,
@@ -92,7 +165,7 @@ def build_registro_view(page: ft.Page):
         visible=False,
         expand=True
     )
-    
+
     def on_modalidad_change(e):
         from database.db_config import SessionLocal
         from database.models import CatModalidad
@@ -111,16 +184,18 @@ def build_registro_view(page: ft.Page):
         else:
             f_registro_modalidad.visible = False
         page.update()
-        
+
     dd_modalidad.on_select = on_modalidad_change
-    
+
     status_text = ft.Text("", size=13, weight="bold")
 
     def registrar(e):
         # Validaciones
-        for c in [f_dni, f_fecha, f_nombres, f_apellidos, dd_sexo, dd_tipo, dd_facultad, dd_escuela, dd_caso, dd_modalidad]:
+        for c in [f_dni, f_fecha, f_nombres, f_apellidos, dd_sexo, dd_tipo, dd_facultad, dd_escuela, dd_modalidad]:
             c.error_text = None
-        
+        lbl_caso_error.value = ""
+        lbl_caso_error.visible = False
+
         hay_errores = False
         if not f_dni.value or len(f_dni.value) != 8: f_dni.error_text = "DNI Inválido"; hay_errores = True
         if not f_fecha.value: f_fecha.error_text = "Requerido"; hay_errores = True
@@ -128,13 +203,22 @@ def build_registro_view(page: ft.Page):
         if not f_apellidos.value: f_apellidos.error_text = "Requerido"; hay_errores = True
         if not dd_sexo.value: dd_sexo.error_text = "Requerido"; hay_errores = True
         if not dd_tipo.value: dd_tipo.error_text = "Requerido"; hay_errores = True
-        if not dd_caso.value: dd_caso.error_text = "Requerido"; hay_errores = True
+
+        casos_seleccionados = [cb.label for cb in cb_casos if cb.value]
+        if not casos_seleccionados:
+            lbl_caso_error.value = "Seleccione al menos una opción"
+            lbl_caso_error.visible = True
+            hay_errores = True
+
         if not dd_facultad.value: dd_facultad.error_text = "Requerido"; hay_errores = True
         if not dd_escuela.value: dd_escuela.error_text = "Requerido"; hay_errores = True
         if not dd_modalidad.value: dd_modalidad.error_text = "Requerido"; hay_errores = True
 
-        if hay_errores: 
-            status_text.value = "⚠ Corrija los errores."; status_text.color = ft.Colors.RED_400; page.update(); return
+        if hay_errores:
+            status_text.value = "Corrija los campos marcados."; status_text.color = ft.Colors.RED_400; page.update(); return
+
+        nombre_caso_consolidado = ", ".join(casos_seleccionados)
+        caso_social_id = CatalogController.get_or_create_caso_social(nombre_caso_consolidado)
 
         datos = {
             "dni": f_dni.value,
@@ -148,7 +232,7 @@ def build_registro_view(page: ft.Page):
             "tipo_usuario_id": int(dd_tipo.value) if dd_tipo.value else None,
             "facultad_id": int(dd_facultad.value) if dd_facultad.value else None,
             "escuela_id": int(dd_escuela.value) if dd_escuela.value else None,
-            "caso_social_id": int(dd_caso.value) if dd_caso.value else None,
+            "caso_social_id": caso_social_id,
             "modalidad_id": int(dd_modalidad.value) if dd_modalidad.value else None,
             "registro_modalidad": f_registro_modalidad.value if f_registro_modalidad.visible else None,
             "celular": f_celular.value,
@@ -157,36 +241,28 @@ def build_registro_view(page: ft.Page):
             "observaciones": f_observaciones.value,
         }
 
-        def preguntar_ficha(p_id, nombres_completos):
+        def preguntar_ficha(p_id, nombres_completos, callback_siguiente=None):
             confirm_dlg = ft.AlertDialog(modal=True)
-            
+
             def al_si(e):
                 confirm_dlg.open = False
                 page.update()
                 from views.components.socioeconomic_dialog import mostrar_ficha_socioeconomica_dialog
-                mostrar_ficha_socioeconomica_dialog(page, p_id, nombres_completos, on_save_callback=None)
-                
+                mostrar_ficha_socioeconomica_dialog(page, p_id, nombres_completos, on_save_callback=callback_siguiente)
+
             def al_no(e):
                 confirm_dlg.open = False
                 page.update()
-                
-            ficha_existente = PersonaController.get_ficha_socioeconomica(p_id)
-            if ficha_existente:
-                confirm_dlg.title = ft.Text("📝 Ficha Socioeconómica Existente")
-                confirm_dlg.content = ft.Text("Este estudiante ya tiene una Ficha Socioeconómica registrada. ¿Deseas actualizarla?")
-                confirm_dlg.actions = [
-                    ft.TextButton("No, dejarla como está", on_click=al_no),
-                    ft.ElevatedButton("Sí, Actualizar", on_click=al_si, bgcolor=ft.Colors.BLUE_800, color=ft.Colors.WHITE)
-                ]
-            else:
-                confirm_dlg.title = ft.Text("📝 Evaluación Socioeconómica Detectada")
-                confirm_dlg.content = ft.Text("¿Deseas rellenar la Ficha Socioeconómica del estudiante ahora?")
-                confirm_dlg.actions = [
-                    ft.TextButton("En otro momento", on_click=al_no),
-                    ft.ElevatedButton("Sí, Rellenar", on_click=al_si, bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE)
-                ]
+                if callback_siguiente: callback_siguiente()
+
+            confirm_dlg.title = ft.Text("Evaluación Socioeconómica Detectada")
+            confirm_dlg.content = ft.Text("¿Deseas rellenar la Ficha Socioeconómica del estudiante ahora?")
+            confirm_dlg.actions = [
+                ft.TextButton("En otro momento", on_click=al_no),
+                ft.ElevatedButton("Sí, Rellenar", on_click=al_si, bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE)
+            ]
             confirm_dlg.actions_alignment = "end"
-            
+
             if confirm_dlg not in page.overlay:
                 page.overlay.append(confirm_dlg)
             confirm_dlg.open = True
@@ -194,25 +270,25 @@ def build_registro_view(page: ft.Page):
 
         def preguntar_derivacion(p_id):
             confirm_dlg = ft.AlertDialog(modal=True)
-            
+
             def al_si(e):
                 confirm_dlg.open = False
                 page.update()
                 from views.components.derivacion_dialog import mostrar_ficha_derivacion_dialog
                 mostrar_ficha_derivacion_dialog(page, p_id, on_close=None)
-                
+
             def al_no(e):
                 confirm_dlg.open = False
                 page.update()
-                
-            confirm_dlg.title = ft.Text("📝 Derivación Detectada")
+
+            confirm_dlg.title = ft.Text("Derivación Detectada")
             confirm_dlg.content = ft.Text("¿Deseas rellenar la Ficha de Derivación para esta atención ahora?")
             confirm_dlg.actions = [
                 ft.TextButton("En otro momento", on_click=al_no),
                 ft.ElevatedButton("Sí, Rellenar", on_click=al_si, bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE)
             ]
             confirm_dlg.actions_alignment = "end"
-            
+
             if confirm_dlg not in page.overlay:
                 page.overlay.append(confirm_dlg)
             confirm_dlg.open = True
@@ -224,15 +300,17 @@ def build_registro_view(page: ft.Page):
             p_id = resultado
             nombres_completos = f"{f_apellidos.value}, {f_nombres.value}"
             mostrar_exito(page, "Registro de atención guardado")
-            
-            # Verificar si requiere Ficha Socioeconómica o Derivación basada en el nombre
-            caso_id = int(dd_caso.value) if dd_caso.value else None
-            caso_nombre = next((c.nombre for c in casos_sociales if c.id == caso_id), "").lower()
+
+            tiene_evaluacion = any("evaluaci" in c.lower() for c in casos_seleccionados)
+            tiene_derivacion = any("derivaci" in c.lower() for c in casos_seleccionados)
+
             limpiar()
-            
-            if "evaluaci" in caso_nombre:
+
+            if tiene_evaluacion and tiene_derivacion:
+                preguntar_ficha(p_id, nombres_completos, callback_siguiente=lambda: preguntar_derivacion(p_id))
+            elif tiene_evaluacion:
                 preguntar_ficha(p_id, nombres_completos)
-            elif "derivaci" in caso_nombre:
+            elif tiene_derivacion:
                 preguntar_derivacion(p_id)
         else:
             mostrar_snackbar(page, f"Error: {resultado}", ft.Colors.RED_800)
@@ -241,8 +319,16 @@ def build_registro_view(page: ft.Page):
     def limpiar(e=None):
         for campo in [f_dni, f_nombres, f_apellidos, f_edad, f_codigo, f_celular, f_correo, f_direccion, f_observaciones, f_registro_modalidad]:
             campo.value = ""
-        for dd in [dd_sexo, dd_tipo, dd_caso, dd_facultad, dd_escuela, dd_año]:
+        for dd in [dd_sexo, dd_tipo, dd_facultad, dd_escuela, dd_año]:
             dd.value = None
+        for cb in cb_casos:
+            cb.value = False
+        _actualizar_texto_caso()
+        lbl_caso_error.value = ""
+        lbl_caso_error.visible = False
+        caso_panel.visible = False
+        caso_panel_visible["val"] = False
+        chevron_icon.name = ft.Icons.KEYBOARD_ARROW_DOWN_ROUNDED
         dd_modalidad.value = "1"
         f_registro_modalidad.visible = False
         f_fecha.value = datetime.now().strftime("%d/%m/%Y")
@@ -250,21 +336,45 @@ def build_registro_view(page: ft.Page):
         status_text.value = ""
         page.update()
 
-    btn_registrar = ft.ElevatedButton("Guardar Registro", bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE, on_click=registrar, icon=ft.Icons.SAVE_ROUNDED)
+    btn_registrar = ft.ElevatedButton("Guardar Registro", bgcolor=ft.Colors.GREEN_800, color=ft.Colors.WHITE, on_click=registrar)
+    btn_limpiar = ft.TextButton("Limpiar Formulario", on_click=limpiar)
+
+    # ── Helper: Separador de sección ─────────────────────────────────────────
+    def seccion(titulo):
+        return ft.Container(
+            padding=ft.padding.only(top=10, bottom=2),
+            content=ft.Text(titulo, size=13, weight="w600", color=ft.Colors.BLUE_200)
+        )
 
     return ft.Container(
         padding=30,
         content=ft.Column([
-            ft.Row([ft.Icon(ft.Icons.PERSON_ADD_ROUNDED, color=ft.Colors.GREEN_400, size=28), ft.Text("Registrar Nueva Atención", size=22, weight="bold")]),
-            ft.Divider(color=ft.Colors.BLUE_900),
-            ft.Row([f_dni, f_fecha, status_text], spacing=20, vertical_alignment="center"),
-            ft.Row([f_nombres, f_apellidos], spacing=20),
-            ft.Row([f_edad, dd_sexo, dd_modalidad, f_registro_modalidad], spacing=20),
-            ft.Row([dd_tipo, dd_caso, f_codigo, dd_año], spacing=20),
-            ft.Row([dd_facultad, dd_escuela], spacing=20),
-            ft.Row([f_celular, f_correo], spacing=20),
+            ft.Text("Registrar Nueva Atención", size=22, weight="bold"),
+            ft.Divider(color=ft.Colors.with_opacity(0.15, ft.Colors.WHITE)),
+
+            # — Sección: Identificación
+            seccion("Identificación"),
+            ft.Row([f_dni, f_fecha, status_text], spacing=15, vertical_alignment="center"),
+            ft.Row([f_nombres, f_apellidos], spacing=15),
+            ft.Row([f_edad, dd_sexo], spacing=15),
+
+            # — Sección: Datos Académicos
+            seccion("Datos Académicos"),
+            ft.Row([dd_tipo, f_codigo, dd_año], spacing=15),
+            ft.Row([dd_facultad, dd_escuela], spacing=15),
+            ft.Row([dd_modalidad, f_registro_modalidad], spacing=15),
+
+            # — Sección: Caso Social
+            seccion("Caso Social"),
+            cnt_casos,
+
+            # — Sección: Contacto
+            seccion("Contacto"),
+            ft.Row([f_celular, f_correo], spacing=15),
             f_direccion,
             f_observaciones,
-            ft.Row([btn_registrar, ft.TextButton("Limpiar Formulario", on_click=limpiar)], alignment="end")
-        ], spacing=15, scroll=ft.ScrollMode.AUTO)
+
+            ft.Divider(color=ft.Colors.with_opacity(0.1, ft.Colors.WHITE)),
+            ft.Row([btn_registrar, btn_limpiar], alignment="end", spacing=10)
+        ], spacing=10, scroll=ft.ScrollMode.AUTO)
     )
