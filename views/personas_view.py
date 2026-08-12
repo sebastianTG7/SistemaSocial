@@ -22,7 +22,9 @@ def build_personas_view(page: ft.Page, on_new_click=None):
     # ── Helper: mostrar cualquier AlertDialog via overlay ──────────────────
     def mostrar_dialogo(dlg):
         """Agrega el diálogo al overlay y lo abre. Compatible con Flet 0.83."""
-        page.overlay = [c for c in page.overlay if not isinstance(c, ft.AlertDialog)]
+        for c in list(page.overlay):
+            if isinstance(c, ft.AlertDialog):
+                page.overlay.remove(c)
         page.overlay.append(dlg)
         dlg.open = True
         page.update()

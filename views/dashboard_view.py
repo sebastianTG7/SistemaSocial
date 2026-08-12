@@ -367,7 +367,9 @@ class DashboardView(ft.Column):
         ]
         dlg.actions_alignment = "end"
 
-        self.main_page.overlay = [c for c in self.main_page.overlay if not isinstance(c, ft.AlertDialog)]
+        for c in list(self.main_page.overlay):
+            if isinstance(c, ft.AlertDialog):
+                self.main_page.overlay.remove(c)
         self.main_page.overlay.append(dlg)
         dlg.open = True
         self.main_page.update()
