@@ -168,6 +168,25 @@ class PersonaController:
                 if nom_caso not in ["Evaluación", "Seguimiento", "Orientación", "Derivación"]:
                     casos_dict[nom_caso] = cnt
 
+            # 3b. Sub-estados de Fichas (Evaluación y Derivación)
+            from database.models import FichaSocioeconomica, FichaDerivacion
+            q_at_base = db.query(Atencion).join(CatCasoSocial, Atencion.caso_social_id == CatCasoSocial.id).filter(Atencion.activo == True)
+            if mes: q_at_base = q_at_base.filter(extract('month', Atencion.fecha_atencion) == int(mes))
+            if anio: q_at_base = q_at_base.filter(extract('year', Atencion.fecha_atencion) == int(anio))
+            atenciones_periodo = q_at_base.all()
+
+            eval_atenciones = [a for a in atenciones_periodo if 'evaluaci' in (a.caso_social.nombre or '').lower()]
+            eval_total = len(eval_atenciones)
+            p_ids_con_ficha = set(r[0] for r in db.query(FichaSocioeconomica.persona_id).all())
+            eval_comp = sum(1 for a in eval_atenciones if a.persona_id in p_ids_con_ficha)
+            eval_pend = max(0, eval_total - eval_comp)
+
+            deriv_atenciones = [a for a in atenciones_periodo if 'derivaci' in (a.caso_social.nombre or '').lower()]
+            deriv_total = len(deriv_atenciones)
+            at_ids_con_deriv = set(r[0] for r in db.query(FichaDerivacion.atencion_id).all())
+            deriv_comp = sum(1 for a in deriv_atenciones if a.id in at_ids_con_deriv)
+            deriv_pend = max(0, deriv_total - deriv_comp)
+
             # 4. Escuelas
             q_escu = db.query(CatEscuela.nombre, func.count(Atencion.id))\
                 .select_from(Atencion).join(Persona, Atencion.persona_id == Persona.id)\
@@ -191,6 +210,12 @@ class PersonaController:
                 "total_periodo": total,
                 "tipos": {n: c for n, c in tipos},
                 "casos_periodo": casos_dict,
+                "fichas_status": {
+                    "eval_comp": eval_comp,
+                    "eval_pend": eval_pend,
+                    "deriv_comp": deriv_comp,
+                    "deriv_pend": deriv_pend
+                },
                 "top_escuelas": [{"label": n, "count": c} for n, c in facultades_top5],
                 "todas_escuelas": [{"label": n, "count": c} for n, c in facultades_todas],
                 "sexo": {s if s else "N/A": c for s, c in sexo}

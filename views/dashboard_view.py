@@ -229,26 +229,27 @@ class DashboardView(ft.Column):
         self.container_cards.controls = [self._card_3d("Total Atenciones", str(data["total_periodo"]), ft.Colors.BLUE_400, ui)]
         casos = data["casos_periodo"]
         
+        f_stat = data.get("fichas_status", {})
+
         cats_config = [
-            ("Evaluación", "Evaluación", ft.Colors.GREEN_400),
-            ("Seguimiento", "Seguimiento", ft.Colors.TEAL_400),
-            ("Orientación", "Orientación", ft.Colors.AMBER_400),
-            ("Derivaciones", "Derivación", ft.Colors.PURPLE_400),
+            ("Evaluación", "Evaluación", ft.Colors.GREEN_400, f_stat.get("eval_pend"), f_stat.get("eval_comp")),
+            ("Seguimiento", "Seguimiento", ft.Colors.TEAL_400, None, None),
+            ("Orientación", "Orientación", ft.Colors.AMBER_400, None, None),
+            ("Derivaciones", "Derivación", ft.Colors.PURPLE_400, f_stat.get("deriv_pend"), f_stat.get("deriv_comp")),
         ]
-        
-        for label_card, clave_caso, color in cats_config:
+
+        for label_card, clave_caso, color, pend_val, comp_val in cats_config:
             val = casos.get(clave_caso, 0)
             if val == 0:
-                # Probar variantes sin acento por compatibilidad
                 val = casos.get(clave_caso.replace("ó", "o").replace("á", "a"), 0)
-            self.container_cards.controls.append(self._card_3d(label_card, str(val), color, ui))
+            self.container_cards.controls.append(self._card_3d(label_card, str(val), color, ui, pend=pend_val, comp=comp_val))
 
         # 2. Charts
         v_est = 0
         for k, v in data['tipos'].items():
             if str(k).upper() in ["ALUMNO", "ESTUDIANTE"]: v_est += v
         v_egr = data['tipos'].get("Egresado", 0) + data['tipos'].get("EGRESADO", 0)
-        
+
         t_sexo = sum(data['sexo'].values()) or 1
         t_sum = (v_est + v_egr) or 1
 
@@ -282,14 +283,28 @@ class DashboardView(ft.Column):
         )
         if render_now: self.update()
 
-    def _card_3d(self, title, value, color, ui):
+    def _card_3d(self, title, value, color, ui, pend=None, comp=None):
+        sub_row = None
+        if pend is not None and comp is not None:
+            sub_row = ft.Container(
+                padding=ft.padding.only(top=3),
+                content=ft.Row([
+                    ft.Text(f"{pend} Pend.", size=11, weight="bold", color=ft.Colors.ORANGE_400),
+                    ft.Text(f"{comp} Comp.", size=11, weight="bold", color=ft.Colors.GREEN_400),
+                ], alignment=ft.MainAxisAlignment.CENTER, spacing=8)
+            )
+
+        col_controls = [
+            ft.Text(title, size=11, color=ui["text_sub"], max_lines=1),
+            ft.Text(value, size=28, weight="bold", color=color)
+        ]
+        if sub_row:
+            col_controls.append(sub_row)
+
         return ft.Container(
-            expand=True, bgcolor=ui["card_bg"], padding=20, border_radius=20, border=ft.border.all(1, ui["border"]),
+            expand=True, bgcolor=ui["card_bg"], padding=ft.padding.symmetric(horizontal=10, vertical=12), border_radius=18, border=ft.border.all(1, ui["border"]),
             shadow=ft.BoxShadow(offset=ft.Offset(4, 6), blur_radius=12, color=ui["shadow"]),
-            content=ft.Column([
-                ft.Text(title, size=10, color=ui["text_sub"], max_lines=1),
-                ft.Text(value, size=28, weight="bold", color=color)
-            ], spacing=5, alignment="center"), height=110
+            content=ft.Column(col_controls, spacing=2, alignment="center"), height=125
         )
 
     def _panel_base(self, title, col_size, ui, content):
